@@ -36,6 +36,10 @@ function revoke(agent: Agent): void {
 
   router.post(`/agents/${agent.id}/revoke`, {}, { preserveScroll: true });
 }
+
+function listCertificates(agent: Agent): void {
+  router.post(`/certificates/agent/${agent.id}/list`, {}, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -70,6 +74,7 @@ function revoke(agent: Agent): void {
             <td>{{ agent.company?.legal_name ?? 'Sem vínculo' }}</td>
             <td class="row-actions">
               <Link class="button" :href="`/agents/${agent.id}/diagnostics`">Diagnóstico</Link>
+              <button class="button" type="button" @click="listCertificates(agent)">Listar certificados</button>
               <button class="button danger" type="button" @click="revoke(agent)">Revogar</button>
             </td>
           </tr>

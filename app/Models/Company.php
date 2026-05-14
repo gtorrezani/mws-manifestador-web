@@ -43,4 +43,10 @@ class Company extends Model
     {
         return $this->hasMany(FiscalDocument::class);
     }
+
+    /** @return HasMany<CompanyCertificate, $this> */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(CompanyCertificate::class);
+    }
 }

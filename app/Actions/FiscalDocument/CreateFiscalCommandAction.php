@@ -2,10 +2,13 @@
 
 namespace App\Actions\FiscalDocument;
 
+use App\Enums\CertificateStatus;
+use App\Enums\CertificateType;
 use App\Enums\CommandStatus;
 use App\Enums\CommandType;
 use App\Models\AgentCommand;
 use App\Models\Company;
+use App\Models\CompanyCertificate;
 use App\Models\FiscalDocument;
 use Illuminate\Support\Str;
 
@@ -21,6 +24,11 @@ class CreateFiscalCommandAction
         ?FiscalDocument $document = null,
         ?int $createdBy = null,
     ): AgentCommand {
+        $certificate = $this->activeA3Certificate($company);
+        if ($certificate && ! isset($payload['certificate_thumbprint'])) {
+            $payload['certificate_thumbprint'] = $certificate->thumbprint;
+        }
+
         $idempotencyParts = [
             $company->id,
             $type->value,
@@ -36,7 +44,7 @@ class CreateFiscalCommandAction
             [
                 'uuid' => (string) Str::uuid(),
                 'company_id' => $company->id,
-                'agent_id' => $company->agents()->latest('last_seen_at')->value('id'),
+                'agent_id' => $certificate?->agent_id ?? $company->agents()->latest('last_seen_at')->value('id'),
                 'type' => $type,
                 'status' => CommandStatus::Pending,
                 'priority' => $this->priorityFor($type),
@@ -60,5 +68,20 @@ class CreateFiscalCommandAction
             CommandType::ExportXmlZip => 60,
             default => 100,
         };
+    }
+
+    private function activeA3Certificate(Company $company): ?CompanyCertificate
+    {
+        /** @var CompanyCertificate|null $certificate */
+        $certificate = $company->certificates()
+            ->where('type', CertificateType::A3->value)
+            ->where('status', CertificateStatus::Active->value)
+            ->whereNotNull('agent_id')
+            ->whereNotNull('thumbprint')
+            ->latest('last_validated_at')
+            ->latest('id')
+            ->first();
+
+        return $certificate;
     }
 }

@@ -2,9 +2,12 @@
 
 namespace App\Actions\Agent;
 
+use App\Actions\Certificates\RecordAgentCertificateInventoryAction;
+use App\Actions\Certificates\RecordCertificateTestResultAction;
 use App\Actions\FiscalDocument\RecordManifestationResultAction;
 use App\DTOs\Agent\CommandResultData;
 use App\Enums\CommandStatus;
+use App\Enums\CommandType;
 use App\Models\Agent;
 use App\Models\AgentCommand;
 use App\Services\Agent\SefazResultRecorder;
@@ -18,6 +21,8 @@ class CompleteAgentCommandAction
     public function __construct(
         private readonly SefazResultRecorder $sefazResultRecorder,
         private readonly RecordManifestationResultAction $recordManifestationResultAction,
+        private readonly RecordAgentCertificateInventoryAction $recordAgentCertificateInventoryAction,
+        private readonly RecordCertificateTestResultAction $recordCertificateTestResultAction,
     ) {}
 
     /** @return array{status: string, idempotent?: bool, completed_at?: string|null} */
@@ -68,6 +73,13 @@ class CompleteAgentCommandAction
 
             $this->sefazResultRecorder->recordSuccessfulResult($command, $data);
             $this->recordManifestationResultAction->recordCompleted($command, $data);
+            if ($command->type === CommandType::ListCertificates) {
+                $this->recordAgentCertificateInventoryAction->execute($agent, $command, $data);
+            }
+
+            if ($command->type === CommandType::TestCertificate) {
+                $this->recordCertificateTestResultAction->recordCompleted($command, $data);
+            }
 
             return [
                 'status' => CommandStatus::Completed->value,

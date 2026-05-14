@@ -32,12 +32,62 @@ export interface Company {
 export interface Agent {
   id: number;
   uuid: string;
+  tenant_id?: number;
+  company_id?: number | null;
   name: string;
   machine_name: string | null;
   version: string | null;
   status: string;
   last_seen_at: string | null;
   company?: Company | null;
+}
+
+export interface AgentCertificate {
+  id: number;
+  uuid: string;
+  agent_id: number;
+  company_id: number | null;
+  type: string;
+  status: string;
+  store_scope: string | null;
+  subject_name: string | null;
+  issuer_name: string | null;
+  serial_number: string | null;
+  thumbprint: string;
+  cnpj: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  has_private_key: boolean;
+  last_seen_at: string | null;
+  last_tested_at: string | null;
+  last_test_status: string | null;
+  last_test_message: string | null;
+  agent?: Agent | null;
+  company?: Company | null;
+}
+
+export interface CompanyCertificate {
+  id: number;
+  uuid: string;
+  company_id: number;
+  agent_id: number | null;
+  agent_certificate_id: number | null;
+  type: string;
+  status: string;
+  name: string | null;
+  subject_name: string | null;
+  issuer_name: string | null;
+  serial_number: string | null;
+  thumbprint: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  store_scope: string | null;
+  last_tested_at: string | null;
+  last_test_status: string | null;
+  last_test_message: string | null;
+  company?: Company | null;
+  agent?: Agent | null;
+  agent_certificate?: AgentCertificate | null;
 }
 
 export interface FiscalDocument {

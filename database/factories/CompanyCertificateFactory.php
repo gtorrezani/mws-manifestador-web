@@ -32,6 +32,7 @@ class CompanyCertificateFactory extends Factory
             'storage_disk' => 'local',
             'storage_path' => 'certificates/'.fake()->uuid().'.pfx.enc',
             'encrypted_password_payload' => fake()->sha256(),
+            'last_test_status' => 'valid',
         ];
     }
 }

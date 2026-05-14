@@ -46,4 +46,10 @@ class Agent extends Model
     {
         return $this->hasMany(AgentHeartbeat::class);
     }
+
+    /** @return HasMany<AgentCertificate, $this> */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(AgentCertificate::class);
+    }
 }

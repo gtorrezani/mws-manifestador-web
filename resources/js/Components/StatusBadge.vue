@@ -21,6 +21,9 @@ const labels: Record<string, string> = {
   revoked: 'Revogado',
   active: 'Ativo',
   inactive: 'Inativo',
+  pending_validation: 'Pendente validação',
+  expired: 'Vencido',
+  invalid: 'Inválido',
   acknowledged: 'Ciência',
   confirmed: 'Confirmada',
   unknown: 'Desconhecida',
@@ -65,6 +68,7 @@ const labels: Record<string, string> = {
 
 .pending,
 .processing,
+.pending_validation,
 .acknowledged,
 .acknowledgement_requested,
 .confirmation_requested,
@@ -78,7 +82,9 @@ const labels: Record<string, string> = {
 .failed,
 .rejected,
 .revoked,
-.offline {
+.offline,
+.expired,
+.invalid {
   background: #fef3f2;
   border-color: #fecdca;
   color: #b42318;

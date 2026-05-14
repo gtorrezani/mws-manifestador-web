@@ -171,6 +171,50 @@ class AgentApiV1Test extends TestCase
             ->assertJsonPath('idempotent', true);
     }
 
+    public function test_list_certificates_result_updates_agent_inventory(): void
+    {
+        [$agent, $secret] = $this->createAgentWithSecret();
+        $command = AgentCommand::factory()->create([
+            'tenant_id' => $agent->tenant_id,
+            'company_id' => $agent->company_id,
+            'agent_id' => $agent->id,
+            'type' => CommandType::ListCertificates,
+            'status' => CommandStatus::Locked,
+            'locked_by_agent_id' => $agent->id,
+            'lock_expires_at' => now()->addMinutes(5),
+        ]);
+
+        $this->postJsonSigned($agent, $secret, "/api/agent/v1/commands/{$command->uuid}/start", [])->assertOk();
+
+        $this->postJsonSigned($agent, $secret, "/api/agent/v1/commands/{$command->uuid}/complete", [
+            'result' => [
+                'certificates' => [
+                    [
+                        'subject' => 'CN=Empresa Teste:12345678000195',
+                        'issuer' => 'CN=AC Teste',
+                        'thumbprint' => 'ABC123',
+                        'serial_number' => 'SERIAL',
+                        'not_before' => now()->subDay()->toISOString(),
+                        'not_after' => now()->addYear()->toISOString(),
+                        'has_private_key' => true,
+                        'cnpj' => '12345678000195',
+                        'store_scope' => 'CurrentUser',
+                    ],
+                ],
+            ],
+        ])->assertOk()->assertJsonPath('status', CommandStatus::Completed->value);
+
+        $this->assertDatabaseHas('agent_certificates', [
+            'tenant_id' => $agent->tenant_id,
+            'agent_id' => $agent->id,
+            'company_id' => $agent->company_id,
+            'thumbprint' => 'ABC123',
+            'cnpj' => '12345678000195',
+            'store_scope' => 'current_user',
+            'has_private_key' => true,
+        ]);
+    }
+
     public function test_failed_command_records_technical_error_and_requeues_until_max_attempts(): void
     {
         [$agent, $secret] = $this->createAgentWithSecret();

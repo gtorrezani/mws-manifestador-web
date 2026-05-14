@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Dashboard', href: '/' },
   { label: 'Empresas', href: '/companies' },
   { label: 'Agentes', href: '/agents' },
+  { label: 'Certificados', href: '/certificates' },
   { label: 'Documentos Fiscais', href: '/fiscal-documents' },
   { label: 'Histórico', href: '/history' },
   { label: 'Configurações', href: '/settings' },

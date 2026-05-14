@@ -2,9 +2,11 @@
 
 namespace App\Actions\Agent;
 
+use App\Actions\Certificates\RecordCertificateTestResultAction;
 use App\Actions\FiscalDocument\RecordManifestationResultAction;
 use App\DTOs\Agent\CommandFailureData;
 use App\Enums\CommandStatus;
+use App\Enums\CommandType;
 use App\Models\Agent;
 use App\Models\AgentCommand;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ class FailAgentCommandAction
 {
     public function __construct(
         private readonly RecordManifestationResultAction $recordManifestationResultAction,
+        private readonly RecordCertificateTestResultAction $recordCertificateTestResultAction,
     ) {}
 
     /** @return array{status: string, idempotent?: bool, final?: bool, available_at?: string|null} */
@@ -75,6 +78,9 @@ class FailAgentCommandAction
             ])->save();
 
             $this->recordManifestationResultAction->recordFailed($command, $data, $isFinalFailure);
+            if ($command->type === CommandType::TestCertificate && $isFinalFailure) {
+                $this->recordCertificateTestResultAction->recordFailed($command, $data);
+            }
 
             return [
                 'status' => $nextStatus->value,

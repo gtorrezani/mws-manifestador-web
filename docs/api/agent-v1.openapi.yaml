@@ -1,0 +1,361 @@
+openapi: 3.0.3
+info:
+  title: MWS Manifestador Agent API
+  version: 1.0.0
+  description: REST contract used by the local Windows agent to activate, poll commands, execute them locally, and report results.
+servers:
+  - url: https://api.example.com
+paths:
+  /api/agent/v1/activate:
+    post:
+      summary: Activate a local agent with a temporary code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateAgentRequest'
+      responses:
+        '201':
+          description: Agent activated. The secret is returned only once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivateAgentResponse'
+        '401':
+          description: Invalid or expired activation code
+  /api/agent/v1/heartbeat:
+    post:
+      summary: Register agent heartbeat and observed public IP
+      security:
+        - AgentHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '200':
+          description: Heartbeat accepted
+  /api/agent/v1/commands/poll:
+    post:
+      summary: Pull pending commands ordered by priority
+      security:
+        - AgentHmac: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PollCommandsRequest'
+      responses:
+        '200':
+          description: Locked commands assigned to the agent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PollCommandsResponse'
+  /api/agent/v1/commands/{commandUuid}/start:
+    post:
+      summary: Mark a locked command as processing
+      security:
+        - AgentHmac: []
+      parameters:
+        - $ref: '#/components/parameters/CommandUuid'
+      responses:
+        '200':
+          description: Command started or already completed idempotently
+  /api/agent/v1/commands/{commandUuid}/complete:
+    post:
+      summary: Complete a command and report fiscal artifacts
+      security:
+        - AgentHmac: []
+      parameters:
+        - $ref: '#/components/parameters/CommandUuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteCommandRequest'
+      responses:
+        '200':
+          description: Command completed
+  /api/agent/v1/commands/{commandUuid}/fail:
+    post:
+      summary: Fail a command attempt and record technical error
+      security:
+        - AgentHmac: []
+      parameters:
+        - $ref: '#/components/parameters/CommandUuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailCommandRequest'
+      responses:
+        '200':
+          description: Failure accepted; command may be requeued or finally failed
+  /api/agent/v1/logs:
+    post:
+      summary: Upload structured agent logs
+      security:
+        - AgentHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentLogsRequest'
+      responses:
+        '202':
+          description: Logs accepted
+  /api/agent/v1/diagnostics:
+    post:
+      summary: Upload agent diagnostics
+      security:
+        - AgentHmac: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsRequest'
+      responses:
+        '202':
+          description: Diagnostics accepted
+components:
+  securitySchemes:
+    AgentHmac:
+      type: apiKey
+      in: header
+      name: X-MWS-Signature
+      description: >
+        HMAC-SHA256 signature over METHOD, PATH, TIMESTAMP, NONCE and BODY_SHA256.
+        Required headers: X-MWS-Agent-Id, X-MWS-Timestamp, X-MWS-Nonce,
+        X-MWS-Body-SHA256 and X-MWS-Signature.
+  parameters:
+    CommandUuid:
+      name: commandUuid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ActivateAgentRequest:
+      type: object
+      required: [activation_code, installation_id, machine_name, version]
+      properties:
+        activation_code:
+          type: string
+        installation_id:
+          type: string
+        machine_name:
+          type: string
+        version:
+          type: string
+        certificate_inventory:
+          type: array
+          items:
+            $ref: '#/components/schemas/CertificateInventoryItem'
+    ActivateAgentResponse:
+      type: object
+      required: [agent_id, secret, auth, polling_interval_seconds]
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        secret:
+          type: string
+          description: Returned only once after activation.
+        auth:
+          type: object
+          properties:
+            algorithm:
+              type: string
+              example: HMAC-SHA256
+            canonical_format:
+              type: string
+              example: "METHOD\nPATH\nTIMESTAMP\nNONCE\nBODY_SHA256"
+            timestamp_tolerance_seconds:
+              type: integer
+        polling_interval_seconds:
+          type: integer
+    HeartbeatRequest:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        version:
+          type: string
+        machine_name:
+          type: string
+        metrics:
+          type: object
+        certificate_inventory:
+          type: array
+          items:
+            $ref: '#/components/schemas/CertificateInventoryItem'
+    PollCommandsRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 25
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandType'
+    PollCommandsResponse:
+      type: object
+      properties:
+        server_time:
+          type: string
+          format: date-time
+        commands:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentCommand'
+    AgentCommand:
+      type: object
+      required: [uuid, type, priority, payload]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/CommandType'
+        priority:
+          type: integer
+        payload:
+          type: object
+        idempotency_key:
+          type: string
+        lock_expires_at:
+          type: string
+          format: date-time
+        attempts_count:
+          type: integer
+        max_attempts:
+          type: integer
+    CompleteCommandRequest:
+      type: object
+      properties:
+        result:
+          type: object
+        sefaz:
+          type: object
+        protocol_number:
+          type: string
+        sefaz_status_code:
+          type: string
+        sefaz_message:
+          type: string
+        duration_ms:
+          type: integer
+        request_xml:
+          $ref: '#/components/schemas/XmlStorageReference'
+        response_xml:
+          $ref: '#/components/schemas/XmlStorageReference'
+    FailCommandRequest:
+      type: object
+      required: [error_code, error_message]
+      properties:
+        error_code:
+          type: string
+        error_message:
+          type: string
+        error_details:
+          type: object
+        sefaz_status_code:
+          type: string
+        sefaz_message:
+          type: string
+        duration_ms:
+          type: integer
+    AgentLogsRequest:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [level, message]
+            properties:
+              level:
+                type: string
+                enum: [debug, info, warning, error, critical]
+              message:
+                type: string
+              context:
+                type: object
+              occurred_at:
+                type: string
+                format: date-time
+    DiagnosticsRequest:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        checks:
+          type: array
+          items:
+            type: object
+            required: [name, status]
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [healthy, degraded, unhealthy]
+              message:
+                type: string
+        environment:
+          type: object
+    XmlStorageReference:
+      type: object
+      properties:
+        storage_disk:
+          type: string
+        storage_path:
+          type: string
+        content_hash:
+          type: string
+    CertificateInventoryItem:
+      type: object
+      properties:
+        thumbprint:
+          type: string
+        subject_name:
+          type: string
+        valid_until:
+          type: string
+          format: date-time
+      description: Must never include A3 PIN or A1 plaintext password.
+    AgentStatus:
+      type: string
+      enum: [pending, online, offline, outdated, error, revoked]
+    CommandType:
+      type: string
+      enum:
+        - sync_fiscal_documents
+        - manifest_acknowledgement
+        - manifest_confirmation
+        - manifest_unknown
+        - manifest_not_performed
+        - download_xml_by_access_key
+        - download_xml_by_period
+        - export_xml_zip
+        - test_certificate
+        - list_certificates
+        - test_sefaz_connectivity

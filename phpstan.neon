@@ -1,0 +1,20 @@
+includes:
+  - vendor/larastan/larastan/extension.neon
+
+parameters:
+  level: 8
+  paths:
+    - app
+    - config
+    - database/factories
+    - database/seeders
+    - routes
+    - tests
+  checkMissingIterableValueType: true
+  checkGenericClassInNonGenericObjectType: true
+  checkUninitializedProperties: true
+  reportUnmatchedIgnoredErrors: true
+  treatPhpDocTypesAsCertain: true
+  tmpDir: storage/phpstan
+  bootstrapFiles:
+    - phpstan-bootstrap.php

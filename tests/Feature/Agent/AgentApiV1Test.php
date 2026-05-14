@@ -84,6 +84,24 @@ class AgentApiV1Test extends TestCase
         ]);
     }
 
+    public function test_invalid_signature_does_not_burn_nonce(): void
+    {
+        [$agent, $secret] = $this->createAgentWithSecret();
+        $body = [
+            'status' => AgentStatus::Online->value,
+            'version' => '1.0.1',
+        ];
+        $timestamp = time();
+        $nonce = 'fixed-nonce-for-invalid-signature-test';
+
+        $this->postJsonSigned($agent, 'wrong-secret', '/api/agent/v1/heartbeat', $body, $timestamp, $nonce)
+            ->assertUnauthorized();
+
+        $this->postJsonSigned($agent, $secret, '/api/agent/v1/heartbeat', $body, $timestamp, $nonce)
+            ->assertOk()
+            ->assertJson(['status' => 'accepted']);
+    }
+
     public function test_poll_respects_priority_and_locks_commands(): void
     {
         [$agent, $secret] = $this->createAgentWithSecret();
@@ -205,11 +223,17 @@ class AgentApiV1Test extends TestCase
      * @param  array<string, mixed>  $body
      * @return TestResponse<JsonResponse>
      */
-    private function postJsonSigned(Agent $agent, string $secret, string $path, array $body): TestResponse
-    {
+    private function postJsonSigned(
+        Agent $agent,
+        string $secret,
+        string $path,
+        array $body,
+        ?int $timestamp = null,
+        ?string $nonce = null,
+    ): TestResponse {
         $json = json_encode($body, JSON_THROW_ON_ERROR);
-        $timestamp = time();
-        $nonce = fake()->uuid();
+        $timestamp ??= time();
+        $nonce ??= fake()->uuid();
         $bodyHash = hash('sha256', $json);
         $canonical = "POST\n{$path}\n{$timestamp}\n{$nonce}\n{$bodyHash}";
         $signature = hash_hmac('sha256', $canonical, $secret);

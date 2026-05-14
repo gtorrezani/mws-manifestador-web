@@ -52,13 +52,13 @@ class AgentHmacAuthenticator
             throw new AccessDeniedHttpException('Agent has been revoked.');
         }
 
-        $nonceKey = sprintf('agent:%s:nonce:%s', $agent->id, $nonce);
-        if (! Cache::add($nonceKey, true, $tolerance + 60)) {
-            throw new UnauthorizedHttpException('HMAC', 'Nonce has already been used.');
-        }
-
         $canonical = $this->canonicalString($request, (string) $timestamp, (string) $nonce, $expectedBodyHash);
         if ($this->matchesCredential($agent->credential, $canonical, (string) $signature)) {
+            $nonceKey = sprintf('agent:%s:nonce:%s', $agent->id, $nonce);
+            if (! Cache::add($nonceKey, true, $tolerance + 60)) {
+                throw new UnauthorizedHttpException('HMAC', 'Nonce has already been used.');
+            }
+
             return $agent;
         }
 

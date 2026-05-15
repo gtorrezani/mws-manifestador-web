@@ -415,3 +415,62 @@ The migration adds indexes for company-scoped fiscal-candidate and classificatio
 - Unstaged certificate UI, frontend type/status updates, company tabs, layout/navigation, local installer docs/script, seeder updates, and auth test additions remain in the worktree and require separate review.
 - PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
 - Next recommended block: certificate UI and frontend type updates, staged separately from layout/navigation.
+
+## Rodada 7
+
+Execution date: 2026-05-15 14:24:12 -03:00
+
+### Scope decision
+
+Created the certificate UI/types slice on top of the backend classification contract from Rodada 6. The commit is limited to the certificate page, certificate-related TypeScript model fields, a small `StatusBadge` label/style addition, and this baseline entry.
+
+Included files:
+
+- `resources/js/Pages/Certificates/Index.vue`
+- `resources/js/types/models.ts`
+- `resources/js/Components/StatusBadge.vue`
+- `docs/QUALITY_BASELINE.md`
+
+Deliberately left out:
+
+- `resources/js/Components/CompanyTabs.vue`
+- `resources/js/Components/Layout/AppLayout.vue`
+- agent/dashboard/settings/history/fiscal-document page changes
+- local installer docs and scripts
+- seeder/bootstrap/test-auth pending changes
+- migrations and backend certificate classification rules
+- HMAC, CPF auth, company-user, SEFAZ/XML real, credentials, and storage-sensitive behavior
+
+### UI and type changes
+
+- Added frontend typing for `AgentCertificate` classification fields: `common_name`, `document`, `document_type`, `store_name`, `is_certificate_authority`, `is_fiscal_candidate`, `is_icp_brasil`, `is_usable_for_client_auth`, `classification`, `rejection_reasons`, and `warnings`.
+- Refreshed the certificate page to split A1 server upload/listing from A3/local Agent flow.
+- The A3 flow now requests normal inventory or full diagnostic inventory using `include_rejected/include_expired`.
+- Fiscal candidates are shown separately from ignored/rejected certificates.
+- Candidate cards display ICP-Brasil, private-key, expired, CA, client-usage, and CNPJ compatibility signals.
+- Link/test actions are disabled unless the certificate is eligible according to the frontend copy of the backend constraints.
+- Rejection reasons and warnings are shown without exposing certificate secrets, PINs, passwords, PFX/P12 contents, PEM, private keys, or fiscal XML.
+- `StatusBadge` gained `success` and corrected Portuguese labels used by certificate connectivity/status displays.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and a mixed worktree with certificate UI candidates plus unrelated pending layout/docs/script/test changes. |
+| `git diff --name-status` | Identified pending files and confirmed the UI/types candidate set. |
+| `npm.cmd run lint` | Passed. |
+| `npm.cmd run format:check` | Initially failed only for `resources/js/Pages/Certificates/Index.vue`; fixed with targeted Prettier write and reran successfully. |
+| `npx.cmd prettier --write resources/js/Pages/Certificates/Index.vue` | Applied mechanical formatting to the certificate page only. |
+| `npm.cmd run typecheck` | Passed. |
+| `npm.cmd run build` | Passed. |
+| `npm.cmd run quality` | Passed. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 90 tests, 501 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+
+### Remaining risks and next blocks
+
+- Unstaged layout/navigation, company tabs, agent/settings/dashboard/history/fiscal-document page updates, installer docs/script, seeder/bootstrap changes, and auth test additions remain in the worktree.
+- PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
+- Next recommended block: company area navigation/layout, including `CompanyTabs`, staged separately from installer docs/scripts and seed/bootstrap changes.

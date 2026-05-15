@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue';
 const props = defineProps<{
   title: string;
   subtitle?: string;
+  showSubtitle?: boolean;
 }>();
 
 const page = usePage();
@@ -23,22 +24,11 @@ const flash = computed(() => {
 });
 
 const navItems = [
-  { label: 'Dashboard', href: '/' },
-  { label: 'Empresas', href: '/companies' },
-  { label: 'Agentes', href: '/agents' },
-  { label: 'Certificados', href: '/certificates' },
-  { label: 'Documentos Fiscais', href: '/fiscal-documents' },
-  { label: 'Histórico', href: '/history' },
-  { label: 'Configurações', href: '/settings' },
+  { label: 'Dashboard', href: '/', activePrefixes: ['/'] },
+  { label: 'Empresa', href: '/settings', activePrefixes: ['/settings', '/agents', '/certificates'] },
+  { label: 'Documentos Fiscais', href: '/fiscal-documents', activePrefixes: ['/fiscal-documents'] },
+  { label: 'Histórico', href: '/history', activePrefixes: ['/history'] },
 ];
-
-const environmentLabel = computed(() => {
-  if (!currentCompany.value) {
-    return 'Sem empresa ativa';
-  }
-
-  return currentCompany.value.fiscal_environment === 'production' ? 'Produção' : 'Homologação';
-});
 
 watch(
   currentCompany,
@@ -63,8 +53,16 @@ function switchCompany(): void {
   );
 }
 
-function formatCnpj(value: string): string {
-  return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+function logout(): void {
+  router.post('/logout');
+}
+
+function isActiveNavItem(item: (typeof navItems)[number]): boolean {
+  if (item.href === '/') {
+    return page.url === '/';
+  }
+
+  return item.activePrefixes.some((prefix) => page.url === prefix || page.url.startsWith(`${prefix}/`));
 }
 </script>
 
@@ -82,7 +80,7 @@ function formatCnpj(value: string): string {
           :key="item.href"
           :href="item.href"
           class="nav-link"
-          :class="{ active: page.url === item.href || (item.href !== '/' && page.url.startsWith(item.href)) }"
+          :class="{ active: isActiveNavItem(item) }"
         >
           {{ item.label }}
         </Link>
@@ -91,15 +89,11 @@ function formatCnpj(value: string): string {
 
     <main class="content">
       <header class="topbar">
-        <div>
+        <div class="title-block">
           <h1>{{ props.title }}</h1>
-          <p v-if="props.subtitle">{{ props.subtitle }}</p>
+          <p v-if="props.showSubtitle && props.subtitle">{{ props.subtitle }}</p>
         </div>
         <div class="company-switcher">
-          <div v-if="currentCompany" class="company-summary">
-            <strong>{{ currentCompany.trade_name || currentCompany.legal_name }}</strong>
-            <span>{{ formatCnpj(currentCompany.cnpj) }} · {{ currentCompany.uf }}</span>
-          </div>
           <select
             v-if="availableCompanies.length > 0"
             v-model="selectedCompanyId"
@@ -110,7 +104,8 @@ function formatCnpj(value: string): string {
               {{ company.legal_name }}
             </option>
           </select>
-          <div class="environment-pill">{{ environmentLabel }}</div>
+          <slot name="actions" />
+          <button class="button danger" type="button" @click="logout">Sair</button>
         </div>
       </header>
 
@@ -204,7 +199,7 @@ nav {
   margin: 0;
 }
 
-.topbar p {
+.title-block p {
   color: var(--muted);
   margin: 5px 0 0;
 }
@@ -217,22 +212,6 @@ nav {
   justify-content: flex-end;
 }
 
-.company-summary {
-  display: grid;
-  gap: 2px;
-  text-align: right;
-}
-
-.company-summary strong {
-  color: var(--text);
-  font-size: 13px;
-}
-
-.company-summary span {
-  color: var(--muted);
-  font-size: 12px;
-}
-
 .company-select {
   background: #fff;
   border: 1px solid var(--border);
@@ -240,16 +219,6 @@ nav {
   color: var(--text);
   min-width: 260px;
   padding: 8px 10px;
-}
-
-.environment-pill {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 999px;
-  color: #9a3412;
-  font-size: 12px;
-  font-weight: 750;
-  padding: 7px 10px;
 }
 
 @media (max-width: 900px) {

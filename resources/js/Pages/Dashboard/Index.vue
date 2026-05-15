@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/Components/Layout/AppLayout.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import StatCard from '@/Components/StatCard.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import type { AgentCommand } from '@/types/models';
@@ -22,7 +23,9 @@ defineProps<{
 
 <template>
   <Head title="Dashboard" />
-  <AppLayout title="Dashboard" subtitle="Acompanhamento operacional das consultas, manifestações e agentes locais.">
+  <AppLayout title="Dashboard">
+    <CompanyTabs active="dashboard" />
+
     <div class="grid cols-4">
       <StatCard label="Notas encontradas" :value="metrics.documentsFound" />
       <StatCard label="XMLs baixados" :value="metrics.xmlDownloaded" tone="success" />

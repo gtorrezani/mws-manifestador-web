@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/Components/Layout/AppLayout.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
@@ -95,8 +96,9 @@ async function copyInstallCommand(): Promise<void> {
 </script>
 
 <template>
-  <Head title="Agentes" />
-  <AppLayout title="Agentes" subtitle="Instalacoes locais responsaveis por certificados A3 e comunicacao com a SEFAZ.">
+  <Head title="Empresa - Agentes" />
+  <AppLayout title="Empresa" subtitle="Dados, certificados e agentes da empresa selecionada." show-subtitle>
+    <CompanyTabs active="agents" />
     <section class="panel install-panel">
       <div class="install-header">
         <div>
@@ -205,10 +207,6 @@ async function copyInstallCommand(): Promise<void> {
         <p v-else class="muted advanced-body">Comandos avancados desabilitados neste ambiente.</p>
       </details>
     </section>
-
-    <div class="section-title">
-      <h2>Agentes instalados</h2>
-    </div>
 
     <div class="table-wrap">
       <table>

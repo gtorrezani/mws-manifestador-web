@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FormField from '@/Components/FormField.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
@@ -169,10 +170,9 @@ function formatDateTime(value: string | null | undefined): string {
 
 <template>
   <Head title="Documentos Fiscais" />
-  <AppLayout
-    title="Documentos Fiscais"
-    subtitle="Consulta operacional dos documentos destinados e geração de comandos para o agente."
-  >
+  <AppLayout title="Documentos Fiscais">
+    <CompanyTabs active="fiscal-documents" />
+
     <form class="toolbar" @submit.prevent="applyFilters">
       <FormField label="Período inicial">
         <input v-model="filterForm.period_from" class="input" type="date" />

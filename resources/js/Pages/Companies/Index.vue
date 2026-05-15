@@ -70,11 +70,10 @@ function submit(): void {
 
 <template>
   <Head title="Empresas" />
-  <AppLayout title="Empresas" subtitle="Cadastro das empresas atendidas e vínculos operacionais.">
-    <div class="section-title">
-      <h2>Empresas cadastradas</h2>
+  <AppLayout title="Empresas">
+    <template #actions>
       <button class="button primary" type="button" @click="openCreate">Nova empresa</button>
-    </div>
+    </template>
 
     <div class="table-wrap">
       <table>

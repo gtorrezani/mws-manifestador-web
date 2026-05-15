@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FormField from '@/Components/FormField.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
@@ -318,6 +319,8 @@ function classificationLabel(classification: string): string {
 <template>
   <Head title="Empresa - Certificados" />
   <AppLayout title="Certificados" subtitle="Cadastro, vínculo e validação dos certificados da empresa selecionada.">
+    <CompanyTabs active="certificates" />
+
     <section class="mode-panel">
       <div class="mode-copy">
         <span class="eyebrow">Tipo de certificado</span>

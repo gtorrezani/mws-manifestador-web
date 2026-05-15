@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FormField from '@/Components/FormField.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 
@@ -29,9 +30,14 @@ function submit(): void {
 </script>
 
 <template>
-  <Head title="Configurações" />
-  <AppLayout title="Configurações" subtitle="Parâmetros operacionais usados pela aplicação central e pelos agentes.">
+  <Head title="Empresa" />
+  <AppLayout title="Empresa" subtitle="Dados, certificados e agentes da empresa selecionada." show-subtitle>
+    <CompanyTabs active="settings" />
+
     <form class="panel settings-form" @submit.prevent="submit">
+      <div class="section-title">
+        <h2>Configurações fiscais</h2>
+      </div>
       <div class="grid cols-2">
         <FormField label="Ambiente fiscal padrão" :error="form.errors.default_fiscal_environment" required>
           <select v-model="form.default_fiscal_environment" class="select">

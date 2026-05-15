@@ -474,3 +474,56 @@ Deliberately left out:
 - Unstaged layout/navigation, company tabs, agent/settings/dashboard/history/fiscal-document page updates, installer docs/script, seeder/bootstrap changes, and auth test additions remain in the worktree.
 - PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
 - Next recommended block: company area navigation/layout, including `CompanyTabs`, staged separately from installer docs/scripts and seed/bootstrap changes.
+
+## Rodada 8
+
+Execution date: 2026-05-15 14:33:47 -03:00
+
+### Scope decision
+
+Created the company-area navigation/layout slice. The commit includes `CompanyTabs`, minimal authenticated layout changes for company switching/logout/actions, and operational pages wired into the company navigation. Installer docs/scripts, seeder/bootstrap changes, auth tests, migrations, backend certificate rules, HMAC/API, and fiscal-domain behavior were left out.
+
+Included files:
+
+- `resources/js/Components/CompanyTabs.vue`
+- `resources/js/Components/Layout/AppLayout.vue`
+- `resources/js/Pages/Agents/Diagnostics.vue`
+- `resources/js/Pages/Agents/Index.vue`
+- `resources/js/Pages/Certificates/Index.vue`
+- `resources/js/Pages/Companies/Index.vue`
+- `resources/js/Pages/Dashboard/Index.vue`
+- `resources/js/Pages/FiscalDocuments/Index.vue`
+- `resources/js/Pages/History/Index.vue`
+- `resources/js/Pages/Settings/Edit.vue`
+- `docs/QUALITY_BASELINE.md`
+
+### Navigation and layout changes
+
+- `CompanyTabs` now presents the selected company and links for summary, settings, certificates, agents, fiscal documents, and history.
+- `AppLayout` keeps the authenticated shell, company selector, flash messages, slot-based page actions, active sidebar state, and a logout button that posts to `/logout`.
+- Dashboard, agents, agent diagnostics, certificates, fiscal documents, history, and settings now show the company-area tabs consistently.
+- Companies uses the layout action slot for the "Nova empresa" action without joining the company tabs.
+- Certificate UI only received the minimal `CompanyTabs` insertion required for navigation consistency.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and a mixed worktree with navigation candidates plus unrelated installer/seeder/bootstrap/auth-test changes. |
+| `git diff --name-status` | Identified pending files and confirmed the navigation/layout candidate set. |
+| `npm.cmd run lint` | Passed. |
+| `npm.cmd run format:check` | Passed. |
+| `npm.cmd run typecheck` | Passed. |
+| `npm.cmd run build` | Passed. |
+| `npm.cmd run quality` | Passed. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 90 tests, 501 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+
+### Remaining risks and next blocks
+
+- Unstaged installer docs/script, seeder/bootstrap changes, and auth test additions remain in the worktree.
+- Some existing Agent installation copy changes are still local and should be reviewed in the installer documentation/script round, not in navigation.
+- PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
+- Next recommended block: installer documentation/script and local operational copy, separated from seed/bootstrap changes.

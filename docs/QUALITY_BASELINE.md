@@ -217,3 +217,69 @@ No `chore: commit web phpstan baseline fixes` commit was created in this round. 
 - Some Portuguese strings in pending untracked frontend/auth files appear mojibake-encoded and should be corrected before committing those functional changes.
 - Each migration should be reviewed with rollback behavior and compatibility against existing data before merge.
 - The HMAC contract files were not touched in this inventory round.
+
+## Rodada 4
+
+Execution date: 2026-05-15 14:01:41 -03:00
+
+### Scope decision
+
+Created the CPF authentication foundation as a small auth-only slice. The staged scope intentionally includes login/logout routes but does not wrap the existing application routes in `auth` yet, because doing that cleanly requires broader updates to operational route tests and should be handled with the company-user authorization block.
+
+Included files:
+
+- `app/Http/Controllers/Auth/AuthenticatedSessionController.php`
+- `app/Http/Requests/Auth/LoginRequest.php`
+- `app/Models/User.php`
+- `app/Rules/ValidCpf.php`
+- `app/Support/Cpf.php`
+- `config/auth.php`
+- `database/factories/UserFactory.php`
+- `database/migrations/2026_05_15_000001_create_users_table.php`
+- `resources/js/Pages/Auth/Login.vue`
+- `routes/web.php`
+- `tests/Feature/Auth/AuthenticationTest.php`
+- `tests/Unit/Support/CpfTest.php`
+
+Deliberately left out:
+
+- `database/migrations/2026_05_15_020000_create_company_user_table.php`
+- `app/Support/CompanyContext/CurrentCompanyContext.php`
+- company-user relation hunks from `app/Models/User.php`
+- company-user/controller/request changes
+- certificate migrations, certificate actions/controllers/frontend, and certificate fixtures
+- `resources/js/Components/CompanyTabs.vue`
+- broad layout/navigation changes and local seeder changes that depend on company-user
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and pending mixed worktree. |
+| `git diff --name-status` | Confirmed mixed auth, company-user, certificate, docs, script, test, and frontend changes before staging. |
+| Auth/CPF file review through `Get-Content` and focused diffs | Confirmed CPF normalization/validation, login rate limiting, blocked/inactive handling, session regeneration, logout invalidation, auth config, user factory, and users migration. |
+| `vendor\bin\phpunit --colors=always tests\Unit\Support\CpfTest.php tests\Feature\Auth\AuthenticationTest.php` | Passed functionally: 17 tests, 53 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 89 tests, 497 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+| `npm.cmd run lint` | Passed. |
+| `npm.cmd run format:check` | Passed. |
+| `npm.cmd run typecheck` | Passed. |
+| `npm.cmd run build` | Passed. |
+| `npm.cmd run quality` | Passed. |
+| `git diff --cached --check` | Passed after restaging selective blobs without BOM/trailing whitespace. |
+
+### Notes
+
+- `Cpf` is stateless, normalizes masks to digits, rejects invalid length and repeated digits, and validates both check digits.
+- `ValidCpf` delegates to `Cpf` and returns a Portuguese validation message.
+- `LoginRequest` authenticates by normalized CPF, rate limits failed attempts, keeps generic invalid-credential messaging, blocks inactive/blocked users, and updates `last_login_at` only after a successful login.
+- `AuthenticatedSessionController` renders the login page, authenticates, regenerates the session, logs out, invalidates the session, and regenerates the CSRF token.
+- `User.php` was staged without `companies()` so this commit does not introduce company-user behavior.
+
+### Remaining risks and next blocks
+
+- Application-wide route protection and company-user authorization remain pending and should be committed as a separate company-user scope.
+- Local worktree still contains broad pending company-user, certificate classification, certificate UI, docs, scripts, and test changes outside this commit.
+- PHPUnit deprecations under PHP 8.5.3 remain non-fatal and should be reviewed separately or compared against the target PHP 8.3 runtime.

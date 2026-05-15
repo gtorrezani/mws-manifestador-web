@@ -575,3 +575,39 @@ Included files:
 - Existing broader Portuguese copy in the Agent operations document still uses some unaccented ASCII text; this round corrected only the new/touched installer operations sections.
 - PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
 - Next recommended block: decide whether the remaining bootstrap/seeder/auth-test changes are still needed, and split or discard them explicitly.
+
+## Rodada 10
+
+Execution date: 2026-05-15 14:44:39 -03:00
+
+### Scope decision
+
+Closed the remaining worktree cleanup. The only pending files were `bootstrap/app.php`, `database/seeders/DatabaseSeeder.php`, and `tests/Feature/Auth/AuthenticationTest.php`. All three were reviewed and discarded explicitly because they were either redundant, convenience-only, or already covered by existing tests.
+
+### File decisions
+
+| File | Decision | Reason |
+| --- | --- | --- |
+| `bootstrap/app.php` | Discarded | The explicit `redirectGuestsTo(route('login'))` duplicates Laravel 11's application builder default, and `redirectUsersTo(route('dashboard'))` is redundant because `RedirectIfAuthenticated` already prefers the named `dashboard` route when it exists. |
+| `database/seeders/DatabaseSeeder.php` | Discarded | The change added local convenience users with fixed CPFs and development passwords. Even though guarded by `local`, it is not required for the feature set or tests and should not be mixed into this PR. |
+| `tests/Feature/Auth/AuthenticationTest.php` | Discarded | The added guest/authenticated `/companies` checks duplicate coverage in `tests/Feature/CompanyContextTest.php`, including guest redirect and authenticated access to company context pages. |
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed only the three expected files were pending before cleanup. |
+| `git diff --name-status` | Confirmed pending files were only `bootstrap/app.php`, `database/seeders/DatabaseSeeder.php`, and `tests/Feature/Auth/AuthenticationTest.php`. |
+| `git diff -- bootstrap/app.php database/seeders/DatabaseSeeder.php tests/Feature/Auth/AuthenticationTest.php` | Reviewed the exact pending diffs before deciding. |
+| `git checkout -- bootstrap/app.php database/seeders/DatabaseSeeder.php tests/Feature/Auth/AuthenticationTest.php` | Discarded only the reviewed pending files. |
+| `composer pint-test` | Initially reported line-ending normalization on the restored files; after targeted Pint normalization, passed. No functional diff remained in those files. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 88 tests, 498 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+| `npm.cmd run quality` | Not run because no frontend files entered this cleanup commit. |
+
+### Remaining risks and next steps
+
+- No local functional worktree changes remain after cleanup.
+- PHPUnit had been consistently reporting 2 non-fatal deprecations under local PHP 8.5.3 in prior rounds; this cleanup does not change runtime behavior.
+- Recommended next step: open/review the PR and let GitHub Actions validate the full branch.

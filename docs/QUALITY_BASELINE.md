@@ -85,3 +85,135 @@ The prior `EPERM` on `node_modules\@esbuild\win32-x64\esbuild.exe` was caused by
 - The quality baseline is now green for PHP and Node on this machine.
 - PHPUnit still reports 2 deprecations when run under PHP 8.5.3. This is not a functional failure, but should be reviewed separately or compared against the project target PHP 8.3 runtime.
 - Unrelated local changes remain in the worktree and were not included in this baseline round.
+
+## Rodada 3
+
+Execution date: 2026-05-15 13:50:40 -03:00
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` with the pending local worktree changes listed below. |
+| `git diff --stat` | Found 35 tracked modified files, 1629 insertions and 413 deletions, not counting untracked files. |
+| `git diff --name-status` | Listed all tracked modified files. |
+| `git diff -- app/Models/User.php tests/Feature/Auth/AuthenticationTest.php tests/Feature/CompanyContextTest.php` | Confirmed the PHPStan fixes are embedded in broader auth/company-user changes relative to `HEAD`. |
+| `git status --porcelain=v1 -uall` | Listed tracked and untracked pending files. |
+| Focused `git diff` and `Get-Content` reads for auth, company context, certificate, migration, frontend, and test groups | Completed inventory without staging or editing files. |
+
+### Worktree inventory
+
+Category legend:
+
+- A: technical quality/PHPStan-only change.
+- B: authentication behavior.
+- C: company-user/company context behavior.
+- D: migration/schema or code directly coupled to pending schema.
+- E: tests/fixtures.
+- F: documentation/scripts.
+- G: generated, temporary, or should not be committed.
+
+Tracked modified files:
+
+| File | Category | Notes |
+| --- | --- | --- |
+| `app/Actions/Certificates/LinkA3CertificateAction.php` | D | Depends on pending agent certificate classification/document schema. |
+| `app/Actions/Certificates/RecordAgentCertificateInventoryAction.php` | D | Implements classification/document fields from pending certificate migration. |
+| `app/Actions/Certificates/StoreA1CertificateAction.php` | D | Certificate validation behavior; should be reviewed with certificate tests. |
+| `app/Http/Controllers/Web/CertificateController.php` | D | Uses pending certificate classification fields and new inventory payload flags. |
+| `app/Http/Controllers/Web/CompanyController.php` | C | Scopes companies, agents, and certificates to authenticated user's companies. |
+| `app/Http/Controllers/Web/CurrentCompanyController.php` | C | Switches current company through available companies. |
+| `app/Http/Requests/Certificate/StoreA1CertificateRequest.php` | D | Certificate upload validation behavior. |
+| `app/Http/Requests/CurrentCompany/UpdateCurrentCompanyRequest.php` | C | Requires selected company to exist in `company_user`. |
+| `app/Models/AgentCertificate.php` | D | Casts pending certificate classification/schema fields. |
+| `app/Models/Company.php` | C | Adds `users()` relation for `company_user`. |
+| `app/Models/User.php` | B | Full auth/user model change plus the Larastan `HasFactory<UserFactory>` fix. |
+| `app/Services/Certificates/A1CertificateInspector.php` | D | Adds fiscal certificate validation rules. |
+| `app/Support/CompanyContext/CurrentCompanyContext.php` | C | Restricts available companies by authenticated user. |
+| `bootstrap/app.php` | B | Adds auth redirect behavior. |
+| `database/factories/AgentCertificateFactory.php` | D | Factory values for pending certificate classification/schema fields. |
+| `database/seeders/DatabaseSeeder.php` | B | Seeds user/auth-related data. |
+| `docs/agent-installation-and-operations.md` | F | Documentation update. |
+| `resources/js/Components/Layout/AppLayout.vue` | B | Adds logout and auth-aware navigation shell. |
+| `resources/js/Components/StatusBadge.vue` | D | UI labels used by certificate/status changes. |
+| `resources/js/Pages/Agents/Diagnostics.vue` | C | Uses company tabs/company area layout. |
+| `resources/js/Pages/Agents/Index.vue` | C | Uses company tabs/company area layout and agent install copy updates. |
+| `resources/js/Pages/Certificates/Index.vue` | D | Large certificate UI rewrite coupled to pending certificate schema fields. |
+| `resources/js/Pages/Companies/Index.vue` | C | Company page layout/action changes. |
+| `resources/js/Pages/Dashboard/Index.vue` | C | Layout subtitle change after company/auth shell changes. |
+| `resources/js/Pages/FiscalDocuments/Index.vue` | C | Layout subtitle change after company/auth shell changes. |
+| `resources/js/Pages/History/Index.vue` | C | Layout subtitle change after company/auth shell changes. |
+| `resources/js/Pages/Settings/Edit.vue` | C | Uses company tabs/company area layout. |
+| `resources/js/types/models.ts` | D | Adds pending certificate classification/schema fields to frontend types. |
+| `routes/web.php` | B | Adds login/logout routes and wraps app routes in `auth`. |
+| `scripts/publish-local-agent-installer.ps1` | F | Script update unrelated to PHPStan baseline. |
+| `tests/Feature/Agent/AgentApiV1Test.php` | E | Adjusts fixture expectations for certificate classification. |
+| `tests/Feature/Agent/AgentOperationsWebTest.php` | E | Test auth/company setup for protected operational routes. |
+| `tests/Feature/CompanyContextTest.php` | E | Company-user behavior tests plus the uninitialized-property PHPStan fix. |
+| `tests/Feature/OperationalCompanyIsolationTest.php` | E | Test auth/company setup for protected operational routes. |
+| `tests/Fixtures/list-certificates-result.json` | E | Fixture for certificate classification behavior. |
+
+Untracked files:
+
+| File | Category | Notes |
+| --- | --- | --- |
+| `app/Http/Controllers/Auth/AuthenticatedSessionController.php` | B | New login/logout controller. |
+| `app/Http/Requests/Auth/LoginRequest.php` | B | CPF login, rate limiting, active/blocked checks, `last_login_at`. |
+| `app/Rules/ValidCpf.php` | B | Auth validation support. |
+| `app/Support/Cpf.php` | B | CPF normalization/validation support. |
+| `config/auth.php` | B | Laravel auth guard/provider configuration. |
+| `database/factories/UserFactory.php` | B | User factory required by auth tests and `HasFactory<UserFactory>`. |
+| `database/migrations/2026_05_14_060000_add_agent_certificate_classification_fields.php` | D | Certificate classification schema. |
+| `database/migrations/2026_05_15_000001_create_users_table.php` | D | User/auth schema. |
+| `database/migrations/2026_05_15_020000_create_company_user_table.php` | D | Company-user pivot schema. |
+| `resources/js/Components/CompanyTabs.vue` | C | Company area navigation component. |
+| `resources/js/Pages/Auth/Login.vue` | B | Login UI. |
+| `tests/Feature/Auth/AuthenticationTest.php` | E | Auth behavior tests plus the null-refresh PHPStan fix. |
+| `tests/Feature/Certificate/StoreA1CertificateRequestTest.php` | E | Certificate request validation tests. |
+| `tests/Unit/Support/CpfTest.php` | E | CPF support tests. |
+
+Generated/temporary files:
+
+- No generated, temporary, backup, `vendor`, `node_modules`, `public/build`, logs, secrets, certificates, or fiscal XML files appeared in `git status`.
+
+### Dependency analysis
+
+The PHPStan fixes cannot be isolated into a clean technical commit against `HEAD` without mixing feature scope:
+
+- `app/Models/User.php`: the requested `@use HasFactory<UserFactory>` fix only makes sense after the pending auth/user model changes add `HasFactory`, `Notifiable`, CPF fields, login state fields, and `companies()`. Committing this file would also commit auth/company-user behavior and depends on untracked `database/factories/UserFactory.php`, `app/Support/Cpf.php`, and the pending users/company_user migrations.
+- `tests/Feature/Auth/AuthenticationTest.php`: the null-refresh fix is inside an untracked auth feature test file. Committing it requires the auth controller, request, CPF rule/support, auth config, login page, routes, user factory, and users migration.
+- `tests/Feature/CompanyContextTest.php`: the uninitialized-property fix is embedded in company-user behavior tests. Relative to `HEAD`, the file also adds authenticated users, `companies()` pivot attachments, and new company isolation cases. It depends on `app/Models\User.php`, `app/Models\Company.php`, `CurrentCompanyContext`, `company_user` migration, and auth setup.
+
+Real dependencies:
+
+- Auth foundation: `User.php`, `UserFactory.php`, users migration, `config/auth.php`, auth controller/request/rule/support, login route/UI, auth tests.
+- Company-user context: company-user migration, `Company::users()`, `User::companies()`, current company resolver/context/controller/request, route auth wrapper, company context tests, operational route test setup.
+- Certificate classification: agent certificate migration, model casts, inventory recorder, certificate controller/actions/inspector, factory, fixture, frontend certificate page/types, certificate tests.
+
+Accidental or separable dependencies:
+
+- Layout copy/subtitle changes can be separated from auth/company behavior if they do not rely on route/auth changes.
+- `scripts/publish-local-agent-installer.ps1` and `docs/agent-installation-and-operations.md` are independent documentation/script work.
+- Status label text updates can be separated unless kept with the certificate UI changes for review coherence.
+
+### Commit decision
+
+No `chore: commit web phpstan baseline fixes` commit was created in this round. A technical-only commit would either be empty relative to `HEAD` or would need to stage broader auth/company-user files and migrations, which would violate the requested scope separation.
+
+### Suggested commit plan for remaining work
+
+| Suggested commit | Files | Objective | Risk | Required tests | Schema dependency |
+| --- | --- | --- | --- | --- | --- |
+| `feat: add cpf authentication foundation` | `app/Http/Controllers/Auth/AuthenticatedSessionController.php`, `app/Http/Requests/Auth/LoginRequest.php`, `app/Rules/ValidCpf.php`, `app/Support/Cpf.php`, `config/auth.php`, `database/factories/UserFactory.php`, `database/migrations/2026_05_15_000001_create_users_table.php`, `resources/js/Pages/Auth/Login.vue`, auth parts of `routes/web.php`, `bootstrap/app.php`, `app/Models/User.php`, `tests/Feature/Auth/AuthenticationTest.php`, `tests/Unit/Support/CpfTest.php` | Introduce CPF login/logout and user model support. | High: changes access control and login behavior. | `composer quality`, focused auth tests, `npm.cmd run quality`. | Yes: users table. |
+| `feat: scope web operations by company user` | `database/migrations/2026_05_15_020000_create_company_user_table.php`, `app/Models/Company.php`, company-user parts of `app/Models/User.php`, `app/Support/CompanyContext/CurrentCompanyContext.php`, `app/Http/Controllers/Web/CompanyController.php`, `app/Http/Controllers/Web/CurrentCompanyController.php`, `app/Http/Requests/CurrentCompany/UpdateCurrentCompanyRequest.php`, `tests/Feature/CompanyContextTest.php`, related operational test setup | Restrict company selection and operational pages to companies linked to authenticated users. | High: authorization/isolation behavior. | `composer quality`, company context and operational isolation tests. | Yes: `company_user`. |
+| `feat: classify fiscal certificates from agent inventory` | certificate migration, `AgentCertificate.php`, certificate actions/controller/inspector/request/factory, `tests/Fixtures/list-certificates-result.json`, agent/certificate tests | Store and filter fiscal certificate candidates safely. | High: certificate selection and fiscal readiness behavior. | `composer quality`, agent API tests, certificate request tests. | Yes: agent certificate fields. |
+| `feat: refresh company certificate UI` | `resources/js/Pages/Certificates/Index.vue`, `resources/js/types/models.ts`, `resources/js/Components/StatusBadge.vue`, related `CertificateController.php` props | Present fiscal candidates, ignored certificates, and linked certificates. | Medium-high: large frontend change. | `npm.cmd run quality`, `composer quality` if controller props change. | Yes: certificate classification fields. |
+| `feat: organize company area navigation` | `resources/js/Components/CompanyTabs.vue`, `resources/js/Components/Layout/AppLayout.vue`, agent/settings/company/dashboard/history/fiscal document page layout updates | Group settings/agents/certificates under company area. | Medium: navigation and UX behavior. | `npm.cmd run quality`, targeted smoke tests for routes. | No direct schema dependency, but depends on auth/company route shape. |
+| `docs: update local agent installer docs` | `docs/agent-installation-and-operations.md`, `scripts/publish-local-agent-installer.ps1` | Document/update installer publishing flow. | Low-medium: operational script behavior. | PowerShell parse check and manual script review. | No. |
+
+### Pending risks
+
+- The pending worktree includes broad functional auth, authorization, certificate, schema, and frontend changes. It should not be committed as one patch.
+- Some Portuguese strings in pending untracked frontend/auth files appear mojibake-encoded and should be corrected before committing those functional changes.
+- Each migration should be reviewed with rollback behavior and compatibility against existing data before merge.
+- The HMAC contract files were not touched in this inventory round.

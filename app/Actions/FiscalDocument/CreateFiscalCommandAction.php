@@ -51,7 +51,7 @@ class CreateFiscalCommandAction
                 'payload' => $payload,
                 'available_at' => now(),
                 'attempts_count' => 0,
-                'max_attempts' => 3,
+                'max_attempts' => $type === CommandType::SyncFiscalDocuments ? 1 : 3,
                 'created_by' => $createdBy,
             ],
         );

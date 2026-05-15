@@ -4,20 +4,21 @@ import AppLayout from '@/Components/Layout/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
-import type { Company, FiscalDocument, Paginated } from '@/types/models';
+import type { CompanyFiscalState, DistributionAvailability, FiscalDocument, Paginated } from '@/types/models';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
 
 const props = defineProps<{
   documents: Paginated<FiscalDocument>;
-  companies: Company[];
   filters: Record<string, string | null>;
+  fiscalState: CompanyFiscalState | null;
+  distributionAvailability: DistributionAvailability;
+  canSyncFiscalDocuments: boolean;
 }>();
 
 const filterForm = reactive({
   period_from: props.filters.period_from ?? '',
   period_to: props.filters.period_to ?? '',
-  company_id: props.filters.company_id ?? '',
   issuer_name: props.filters.issuer_name ?? '',
   issuer_cnpj: props.filters.issuer_cnpj ?? '',
   access_key: props.filters.access_key ?? '',
@@ -53,6 +54,14 @@ const allVisibleSelected = computed(() => {
   const ids = props.documents.data.map((document) => document.id);
   return ids.length > 0 && ids.every((id) => selectedIds.value.includes(id));
 });
+const canRequestDistribution = computed(() => props.canSyncFiscalDocuments && props.distributionAvailability.allowed);
+const distributionBlockedMessage = computed(() => {
+  if (!props.canSyncFiscalDocuments) {
+    return 'Vincule e teste um certificado A3 válido antes de consultar a SEFAZ.';
+  }
+
+  return props.distributionAvailability.allowed ? null : props.distributionAvailability.message;
+});
 
 function applyFilters(): void {
   router.get('/fiscal-documents', filterForm, {
@@ -65,7 +74,6 @@ function clearFilters(): void {
   Object.assign(filterForm, {
     period_from: '',
     period_to: '',
-    company_id: '',
     issuer_name: '',
     issuer_cnpj: '',
     access_key: '',
@@ -122,6 +130,10 @@ function requestXml(document: FiscalDocument): void {
   router.post(`/fiscal-documents/${document.id}/download-xml`, {}, { preserveScroll: true });
 }
 
+function syncFiscalDocuments(): void {
+  router.post('/fiscal-documents/sync', {}, { preserveScroll: true });
+}
+
 function runBulk(action: string): void {
   bulkForm.action = action;
   bulkForm.document_ids = selectedIds.value;
@@ -140,6 +152,19 @@ function formatCurrency(value: string | number | null): string {
 
   return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return '-';
+  }
+
+  return new Date(value).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 </script>
 
 <template>
@@ -154,14 +179,6 @@ function formatCurrency(value: string | number | null): string {
       </FormField>
       <FormField label="Período final">
         <input v-model="filterForm.period_to" class="input" type="date" />
-      </FormField>
-      <FormField label="Empresa">
-        <select v-model="filterForm.company_id" class="select">
-          <option value="">Todas</option>
-          <option v-for="company in props.companies" :key="company.id" :value="company.id">
-            {{ company.legal_name }}
-          </option>
-        </select>
       </FormField>
       <FormField label="Fornecedor">
         <input v-model="filterForm.issuer_name" class="input" />
@@ -205,6 +222,38 @@ function formatCurrency(value: string | number | null): string {
         <button class="button" type="button" @click="clearFilters">Limpar</button>
       </div>
     </form>
+
+    <div class="sync-panel">
+      <div>
+        <strong>Distribuição DFe</strong>
+        <div class="muted">
+          Último NSU {{ props.fiscalState?.last_nsu ?? '000000000000000' }} · Máximo
+          {{ props.fiscalState?.max_nsu ?? '000000000000000' }}
+        </div>
+        <div class="muted">
+          {{ props.fiscalState?.last_message ?? 'Nenhuma consulta executada para a empresa selecionada.' }}
+        </div>
+        <div class="distribution-details">
+          <span>Última consulta: {{ formatDateTime(props.fiscalState?.last_distribution_attempt_at) }}</span>
+          <span>Próxima consulta: {{ formatDateTime(props.distributionAvailability.available_at) }}</span>
+          <span v-if="props.fiscalState?.distribution_block_reason">
+            Motivo: {{ props.fiscalState.distribution_block_reason }}
+          </span>
+        </div>
+      </div>
+      <button
+        class="button primary"
+        type="button"
+        :disabled="!canRequestDistribution"
+        :title="distributionBlockedMessage ?? 'Consultar distribuição DFe na SEFAZ'"
+        @click="syncFiscalDocuments"
+      >
+        Consultar SEFAZ
+      </button>
+      <small v-if="distributionBlockedMessage" class="error">
+        {{ distributionBlockedMessage }}
+      </small>
+    </div>
 
     <div class="bulk-bar">
       <strong>{{ selectedCount }} selecionado(s)</strong>
@@ -335,6 +384,28 @@ function formatCurrency(value: string | number | null): string {
   gap: 10px;
   margin-bottom: 12px;
   padding: 10px 12px;
+}
+
+.sync-panel {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
+.distribution-details {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .access-key {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CommandStatus;
 use App\Enums\CommandType;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\AgentCommandFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AgentCommand extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<AgentCommandFactory> */
     use HasFactory;
 
@@ -52,6 +55,6 @@ class AgentCommand extends Model
     /** @return HasMany<AgentCommandAttempt, $this> */
     public function attempts(): HasMany
     {
-        return $this->hasMany(AgentCommandAttempt::class);
+        return $this->hasMany(AgentCommandAttempt::class)->latest('id');
     }
 }

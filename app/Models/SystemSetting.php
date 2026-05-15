@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\SystemSettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,9 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SystemSetting extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<SystemSettingFactory> */
     use HasFactory;
-
     use HasPublicUuid;
     use SoftDeletes;
 

@@ -21,6 +21,14 @@ defineProps<{
     }>;
   }>;
 }>();
+
+const technicalMessage = (code: string | null, message: string | null): string => {
+  if (code === 'SEFAZ_XML_SCHEMA_INVALID') {
+    return 'XML rejeitado pela validação técnica antes do envio à SEFAZ.';
+  }
+
+  return message ?? '-';
+};
 </script>
 
 <template>
@@ -39,6 +47,7 @@ defineProps<{
               <th>Tipo</th>
               <th>Status</th>
               <th>Prioridade</th>
+              <th>Erro técnico</th>
               <th>Criado em</th>
               <th>Finalizado</th>
             </tr>
@@ -50,11 +59,17 @@ defineProps<{
               <td class="mono">{{ command.type }}</td>
               <td><StatusBadge :status="command.status" /></td>
               <td>{{ command.priority }}</td>
+              <td>
+                <span v-if="command.attempts?.[0]?.error_code" class="error-text">
+                  {{ technicalMessage(command.attempts[0].error_code, command.attempts[0].error_message) }}
+                </span>
+                <span v-else>-</span>
+              </td>
               <td>{{ command.created_at ?? '-' }}</td>
               <td>{{ command.completed_at ?? command.failed_at ?? '-' }}</td>
             </tr>
             <tr v-if="commands.data.length === 0">
-              <td colspan="7" class="muted">Nenhum comando registrado.</td>
+              <td colspan="8" class="muted">Nenhum comando registrado.</td>
             </tr>
           </tbody>
         </table>
@@ -100,5 +115,10 @@ defineProps<{
 <style scoped>
 .sefaz {
   margin-top: 18px;
+}
+
+.error-text {
+  color: #b42318;
+  font-weight: 600;
 }
 </style>

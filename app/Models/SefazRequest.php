@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\FiscalEnvironment;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\SefazRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,9 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SefazRequest extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<SefazRequestFactory> */
     use HasFactory;
-
     use HasPublicUuid;
 
     protected $guarded = ['id'];

@@ -76,6 +76,35 @@ Comando:
 
 O retorno e parseado para `last_nsu`, `max_nsu` e documentos distribuidos. A camada inclui descompactacao GZip/Base64 para `docZip`.
 
+### Protecao contra consumo indevido
+
+A Distribuicao DFe possui controle operacional por empresa, ambiente, UF e servico em `company_fiscal_states`.
+Esse controle existe para impedir repeticao imediata de consultas quando a SEFAZ informa ausencia de documentos ou bloqueia por consumo indevido.
+
+Codigos tratados:
+
+| cStat | Resultado | Acao operacional |
+| --- | --- | --- |
+| `137` | Nenhum documento localizado | grava `last_nsu`/`max_nsu`, registra sucesso tecnico e aplica cooldown seguro. |
+| `138` | Documento localizado | grava documentos e avanca NSU; se `ultNSU < maxNSU`, pode continuar conforme config; se `ultNSU == maxNSU`, aplica cooldown seguro. |
+| `656` | Consumo indevido | registra falha operacional, bloqueia novas consultas ate `distribution_blocked_until` e nao avanca NSU. |
+
+Configuracao:
+
+```php
+// config/sefaz.php
+'distribution' => [
+    'no_documents_cooldown_minutes' => 60,
+    'consumption_denied_cooldown_minutes' => 60,
+    'technical_error_backoff_minutes' => 5,
+    'allow_immediate_continue_when_nsu_pending' => true,
+],
+```
+
+Erros tecnicos locais, SOAP, certificado, XSD ou parse nao avancam `last_nsu`. Eles podem aplicar backoff curto por `technical_error_backoff_minutes`, mas nao sao tratados como rejeicao fiscal da SEFAZ.
+
+A UI de Documentos Fiscais desabilita `Consultar SEFAZ` quando ha cooldown ou bloqueio operacional e mostra o horario de liberacao. A API nao cria novo `agent_command` enquanto a janela estiver ativa.
+
 ## Recepcao de Evento
 
 Comandos:
@@ -126,10 +155,11 @@ O endpoint resolver resolve `NFeDistribuicaoDFe` via Ambiente Nacional e `NFeRec
 - Rejeicao SEFAZ reportada em `complete` nao e tratada como sucesso fiscal pela API; a maquina de estados marca `rejected`.
 - Status aceitos atualmente como evento registrado: `135`, `136`, `155`.
 - Timeout, erro de certificado, erro de assinatura ou erro de schema nao devem alterar manifestacao como sucesso.
+- Falha tecnica `SEFAZ_XML_SCHEMA_INVALID` nao avanca NSU e nao aplica janela de `137`.
+- Falha operacional `SEFAZ_DISTRIBUTION_CONSUMPTION_DENIED` bloqueia novas consultas e nao gera retry imediato.
 
 ## TODO
 
 - Persistir XML completo baixado no storage central apos retorno do agente.
 - Completar tratamento por `cStat` especifico, incluindo duplicidade de evento e eventos ja vinculados.
-- Completar controle operacional de NSU por empresa.
 - Validar lote de eventos conforme limite oficial vigente.

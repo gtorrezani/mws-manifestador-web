@@ -22,7 +22,7 @@ class CreateAgentActivationCodeAction
             'requested_by' => $requestedBy,
             'code_hash' => Hash::make($code),
             'status' => ActivationStatus::Pending,
-            'expires_at' => now()->addMinutes(30),
+            'expires_at' => now()->addMinutes((int) config('agent.activation_code_ttl_minutes', 30)),
         ]);
 
         return [

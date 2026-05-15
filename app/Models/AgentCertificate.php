@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateType;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\AgentCertificateFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AgentCertificate extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<AgentCertificateFactory> */
     use HasFactory;
 
@@ -27,10 +30,16 @@ class AgentCertificate extends Model
         'status' => CertificateStatus::class,
         'valid_from' => 'immutable_datetime',
         'valid_until' => 'immutable_datetime',
+        'not_before' => 'immutable_datetime',
+        'not_after' => 'immutable_datetime',
         'has_private_key' => 'boolean',
+        'is_expired' => 'boolean',
+        'is_valid' => 'boolean',
         'last_seen_at' => 'immutable_datetime',
         'last_tested_at' => 'immutable_datetime',
         'metadata' => 'array',
+        'raw_payload' => 'array',
+        'last_test_payload' => 'array',
     ];
 
     /** @return BelongsTo<Tenant, $this> */

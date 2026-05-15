@@ -3,6 +3,8 @@
 namespace App\Actions\Agent;
 
 use App\Actions\Certificates\RecordCertificateTestResultAction;
+use App\Actions\Certificates\RecordSefazConnectivityTestResultAction;
+use App\Actions\FiscalDocument\RecordFiscalDocumentSyncResultAction;
 use App\Actions\FiscalDocument\RecordManifestationResultAction;
 use App\DTOs\Agent\CommandFailureData;
 use App\Enums\CommandStatus;
@@ -18,7 +20,9 @@ class FailAgentCommandAction
 {
     public function __construct(
         private readonly RecordManifestationResultAction $recordManifestationResultAction,
+        private readonly RecordFiscalDocumentSyncResultAction $recordFiscalDocumentSyncResultAction,
         private readonly RecordCertificateTestResultAction $recordCertificateTestResultAction,
+        private readonly RecordSefazConnectivityTestResultAction $recordSefazConnectivityTestResultAction,
     ) {}
 
     /** @return array{status: string, idempotent?: bool, final?: bool, available_at?: string|null} */
@@ -47,7 +51,8 @@ class FailAgentCommandAction
                 throw new ConflictHttpException('Command must be processing before failure.');
             }
 
-            $isFinalFailure = $command->attempts_count >= $command->max_attempts;
+            $isFinalFailure = $command->attempts_count >= $command->max_attempts
+                || ($command->type === CommandType::SyncFiscalDocuments && $this->isDistributionConsumptionDenied($data));
             $nextStatus = $isFinalFailure ? CommandStatus::Failed : CommandStatus::Pending;
 
             $command->forceFill([
@@ -78,8 +83,15 @@ class FailAgentCommandAction
             ])->save();
 
             $this->recordManifestationResultAction->recordFailed($command, $data, $isFinalFailure);
-            if ($command->type === CommandType::TestCertificate && $isFinalFailure) {
+            if ($command->type === CommandType::SyncFiscalDocuments && $isFinalFailure) {
+                $this->recordFiscalDocumentSyncResultAction->recordFailed($command, $data);
+            }
+
+            if ($command->type === CommandType::TestCertificate) {
                 $this->recordCertificateTestResultAction->recordFailed($command, $data);
+            }
+            if ($command->type === CommandType::TestSefazConnectivity) {
+                $this->recordSefazConnectivityTestResultAction->recordFailed($command, $data);
             }
 
             return [
@@ -93,5 +105,11 @@ class FailAgentCommandAction
     private function retryDelaySeconds(AgentCommand $command): int
     {
         return min(900, 30 * max(1, $command->attempts_count));
+    }
+
+    private function isDistributionConsumptionDenied(CommandFailureData $data): bool
+    {
+        return $data->errorCode === 'SEFAZ_DISTRIBUTION_CONSUMPTION_DENIED'
+            || $data->sefazStatusCode === '656';
     }
 }

@@ -2,7 +2,9 @@
 
 namespace App\Actions\Agent;
 
+use App\Actions\Certificates\RecordSefazConnectivityTestResultAction;
 use App\Enums\CommandStatus;
+use App\Enums\CommandType;
 use App\Enums\ManifestationRecordStatus;
 use App\Enums\ManifestationStatus;
 use App\Models\Agent;
@@ -17,6 +19,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class StartAgentCommandAction
 {
+    public function __construct(
+        private readonly RecordSefazConnectivityTestResultAction $recordSefazConnectivityTestResultAction,
+    ) {}
+
     /** @return array{status: string, idempotent?: bool, attempt_number?: int, lock_expires_at?: string|null} */
     public function execute(Agent $agent, string $commandUuid): array
     {
@@ -64,6 +70,9 @@ class StartAgentCommandAction
             ]);
 
             $this->startManifestationAttempt($command, $agent, $attemptNumber);
+            if ($command->type === CommandType::TestSefazConnectivity) {
+                $this->recordSefazConnectivityTestResultAction->markProcessing($command);
+            }
 
             return [
                 'status' => CommandStatus::Processing->value,

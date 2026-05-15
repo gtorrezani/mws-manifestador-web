@@ -10,4 +10,5 @@ enum AgentStatus: string
     case Outdated = 'outdated';
     case Error = 'error';
     case Revoked = 'revoked';
+    case ServiceStopped = 'service_stopped';
 }

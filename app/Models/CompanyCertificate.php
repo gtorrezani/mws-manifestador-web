@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CertificateStatus;
 use App\Enums\CertificateType;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\CompanyCertificateFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CompanyCertificate extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<CompanyCertificateFactory> */
     use HasFactory;
 
@@ -29,6 +32,7 @@ class CompanyCertificate extends Model
         'metadata' => 'array',
         'last_validated_at' => 'immutable_datetime',
         'last_tested_at' => 'immutable_datetime',
+        'last_test_payload' => 'array',
         'revoked_at' => 'immutable_datetime',
     ];
 

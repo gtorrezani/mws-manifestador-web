@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ManifestationStatus;
 use App\Enums\XmlDownloadStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\FiscalDocumentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,9 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class FiscalDocument extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<FiscalDocumentFactory> */
     use HasFactory;
-
     use HasPublicUuid;
 
     protected $guarded = ['id'];

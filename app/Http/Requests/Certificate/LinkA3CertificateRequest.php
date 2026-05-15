@@ -15,7 +15,6 @@ class LinkA3CertificateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['required', 'integer', 'exists:companies,id'],
             'agent_certificate_id' => ['required', 'integer', 'exists:agent_certificates,id'],
             'name' => ['nullable', 'string', 'max:120'],
         ];

@@ -6,55 +6,66 @@ use App\Actions\Certificates\LinkA3CertificateAction;
 use App\Actions\Certificates\StoreA1CertificateAction;
 use App\Enums\CommandStatus;
 use App\Enums\CommandType;
+use App\Http\Controllers\Concerns\AuthorizesCurrentCompany;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Certificate\LinkA3CertificateRequest;
 use App\Http\Requests\Certificate\StoreA1CertificateRequest;
+use App\Http\Requests\Certificate\TestSefazConnectivityRequest;
 use App\Models\Agent;
 use App\Models\AgentCertificate;
 use App\Models\AgentCommand;
-use App\Models\Company;
 use App\Models\CompanyCertificate;
+use App\Models\SefazConnectivityTest;
+use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CertificateController extends Controller
 {
-    public function index(): Response
+    use AuthorizesCurrentCompany;
+
+    public function index(CurrentCompanyContext $context): Response
     {
+        $company = $context->company();
+
         return Inertia::render('Certificates/Index', [
-            'companies' => Company::query()
-                ->where('is_active', true)
-                ->orderBy('legal_name')
-                ->get(['id', 'tenant_id', 'legal_name', 'trade_name', 'cnpj', 'uf', 'fiscal_environment', 'is_active']),
             'agents' => Agent::query()
+                ->forCompany($company)
                 ->with('company:id,legal_name,cnpj')
                 ->orderBy('name')
                 ->get(['id', 'uuid', 'tenant_id', 'company_id', 'name', 'machine_name', 'version', 'status', 'last_seen_at']),
             'agentCertificates' => AgentCertificate::query()
+                ->forCompany($company)
                 ->with(['agent:id,name,machine_name,status', 'company:id,legal_name,cnpj'])
                 ->latest('last_seen_at')
                 ->paginate(20)
                 ->withQueryString(),
             'companyCertificates' => CompanyCertificate::query()
+                ->forCompany($company)
                 ->with(['company:id,legal_name,cnpj', 'agent:id,name,machine_name,status', 'agentCertificate:id,last_seen_at,has_private_key'])
                 ->latest('id')
                 ->paginate(20)
                 ->withQueryString(),
+            'sefazConnectivityTests' => SefazConnectivityTest::query()
+                ->forCompany($company)
+                ->with(['companyCertificate:id,name,thumbprint', 'agent:id,name,machine_name,status'])
+                ->latest('requested_at')
+                ->limit(10)
+                ->get(),
         ]);
     }
 
-    public function requestAgentInventory(Agent $agent): RedirectResponse
+    public function requestAgentInventory(Agent $agent, CurrentCompanyContext $context): RedirectResponse
     {
-        if (! $agent->company_id) {
-            return back()->with('success', 'Agente sem empresa vinculada. Vincule uma empresa antes de listar certificados.');
-        }
+        $this->abortUnlessBelongsToCurrentCompany($agent, $context);
 
         AgentCommand::query()->create([
             'uuid' => (string) Str::uuid(),
             'tenant_id' => $agent->tenant_id,
-            'company_id' => $agent->company_id,
+            'company_id' => $context->companyId(),
             'agent_id' => $agent->id,
             'type' => CommandType::ListCertificates,
             'status' => CommandStatus::Pending,
@@ -68,15 +79,28 @@ class CertificateController extends Controller
         return back()->with('success', 'Comando para listar certificados enviado ao agente.');
     }
 
-    public function linkA3(LinkA3CertificateRequest $request, LinkA3CertificateAction $action): RedirectResponse
-    {
-        /** @var Company $company */
-        $company = Company::query()->findOrFail((int) $request->validated('company_id'));
+    public function linkA3(
+        LinkA3CertificateRequest $request,
+        LinkA3CertificateAction $action,
+        CurrentCompanyContext $context,
+    ): RedirectResponse {
+        $company = $context->company();
+
         /** @var AgentCertificate $agentCertificate */
-        $agentCertificate = AgentCertificate::query()->findOrFail((int) $request->validated('agent_certificate_id'));
+        $agentCertificate = AgentCertificate::query()
+            ->with('agent:id,company_id')
+            ->findOrFail((int) $request->validated('agent_certificate_id'));
 
         if ($agentCertificate->tenant_id !== $company->tenant_id) {
-            abort(422, 'Certificado não pertence ao mesmo tenant da empresa.');
+            abort(404);
+        }
+
+        if ($agentCertificate->company_id !== null && $agentCertificate->company_id !== $company->id) {
+            abort(404);
+        }
+
+        if ($agentCertificate->agent instanceof Agent && $agentCertificate->agent->company_id !== $company->id) {
+            abort(404);
         }
 
         $action->execute(
@@ -85,35 +109,38 @@ class CertificateController extends Controller
             is_string($request->validated('name')) ? $request->validated('name') : null,
         );
 
-        return back()->with('success', 'Certificado A3 vinculado à empresa.');
+        return back()->with('success', 'Certificado A3 vinculado a empresa.');
     }
 
-    public function storeA1(StoreA1CertificateRequest $request, StoreA1CertificateAction $action): RedirectResponse
-    {
-        /** @var Company $company */
-        $company = Company::query()->findOrFail((int) $request->validated('company_id'));
+    public function storeA1(
+        StoreA1CertificateRequest $request,
+        StoreA1CertificateAction $action,
+        CurrentCompanyContext $context,
+    ): RedirectResponse {
         $file = $request->file('certificate_file');
         if (! $file) {
-            abort(422, 'Arquivo do certificado não informado.');
+            abort(422, 'Arquivo do certificado nao informado.');
         }
 
         $action->execute(
-            $company,
+            $context->company(),
             $file,
             (string) $request->validated('password'),
             is_string($request->validated('name')) ? $request->validated('name') : null,
         );
 
-        return back()->with('success', 'Certificado A1 validado e armazenado com segurança.');
+        return back()->with('success', 'Certificado A1 validado e armazenado com seguranca.');
     }
 
-    public function test(CompanyCertificate $certificate): RedirectResponse
+    public function test(CompanyCertificate $certificate, CurrentCompanyContext $context): RedirectResponse
     {
+        $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
+
         if ($certificate->type->value === 'a1') {
             $certificate->forceFill([
                 'last_tested_at' => now(),
                 'last_test_status' => 'valid',
-                'last_test_message' => 'Certificado A1 já foi validado no cadastro.',
+                'last_test_message' => 'Certificado A1 ja foi validado no cadastro.',
                 'last_validated_at' => now(),
             ])->save();
 
@@ -124,20 +151,149 @@ class CertificateController extends Controller
             return back()->with('success', 'Certificado A3 sem agente ou thumbprint para teste.');
         }
 
+        $agent = Agent::query()
+            ->where('id', $certificate->agent_id)
+            ->where('tenant_id', $certificate->tenant_id)
+            ->where('company_id', $context->companyId())
+            ->firstOrFail();
+
         AgentCommand::query()->create([
             'uuid' => (string) Str::uuid(),
             'tenant_id' => $certificate->tenant_id,
-            'company_id' => $certificate->company_id,
-            'agent_id' => $certificate->agent_id,
+            'company_id' => $context->companyId(),
+            'agent_id' => $agent->id,
             'type' => CommandType::TestCertificate,
             'status' => CommandStatus::Pending,
             'priority' => 5,
-            'payload' => ['thumbprint' => $certificate->thumbprint],
+            'payload' => [
+                'thumbprint' => $certificate->thumbprint,
+                'store_location' => $this->storeLocation($certificate->store_scope),
+                'correlation_id' => (string) Str::uuid(),
+                'company_certificate_uuid' => $certificate->uuid,
+            ],
             'available_at' => now(),
             'max_attempts' => 1,
             'idempotency_key' => 'test-certificate:'.$certificate->id.':'.Str::uuid(),
         ]);
 
         return back()->with('success', 'Comando de teste do certificado enviado ao agente.');
+    }
+
+    public function testAgentCertificate(AgentCertificate $certificate, CurrentCompanyContext $context): RedirectResponse
+    {
+        $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
+
+        if (! $certificate->thumbprint || ! $certificate->agent_id) {
+            return back()->with('success', 'Certificado sem agente ou thumbprint para teste.');
+        }
+
+        $agent = Agent::query()
+            ->where('id', $certificate->agent_id)
+            ->where('tenant_id', $certificate->tenant_id)
+            ->where('company_id', $context->companyId())
+            ->firstOrFail();
+
+        AgentCommand::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'tenant_id' => $certificate->tenant_id,
+            'company_id' => $context->companyId(),
+            'agent_id' => $agent->id,
+            'type' => CommandType::TestCertificate,
+            'status' => CommandStatus::Pending,
+            'priority' => 5,
+            'payload' => [
+                'thumbprint' => $certificate->thumbprint,
+                'store_location' => $this->storeLocation($certificate->store_location ?? $certificate->store_scope),
+                'correlation_id' => (string) Str::uuid(),
+                'agent_certificate_uuid' => $certificate->uuid,
+            ],
+            'available_at' => now(),
+            'max_attempts' => 1,
+            'idempotency_key' => 'test-agent-certificate:'.$certificate->id.':'.Str::uuid(),
+        ]);
+
+        return back()->with('success', 'Comando de teste do certificado enviado ao agente.');
+    }
+
+    public function testSefazConnectivity(
+        TestSefazConnectivityRequest $request,
+        CompanyCertificate $certificate,
+        CurrentCompanyContext $context,
+    ): RedirectResponse {
+        $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
+
+        if ($certificate->type->value !== 'a3') {
+            return back()->with('success', 'Teste de conectividade SEFAZ deve usar certificado A3 vinculado ao agente.');
+        }
+
+        if (! $certificate->agent_id || ! $certificate->thumbprint) {
+            return back()->with('success', 'Certificado sem agente ou thumbprint para testar conectividade SEFAZ.');
+        }
+
+        if ($request->validated('mode') === 'live_homologation' && $certificate->last_test_status !== 'valid') {
+            return back()->with('success', 'Homologação real exige certificado testado como válido.');
+        }
+
+        $company = $context->company();
+        $agent = Agent::query()
+            ->where('id', $certificate->agent_id)
+            ->where('tenant_id', $certificate->tenant_id)
+            ->where('company_id', $context->companyId())
+            ->firstOrFail();
+
+        $test = SefazConnectivityTest::query()->create([
+            'tenant_id' => $company->tenant_id,
+            'company_id' => $company->id,
+            'agent_id' => $agent->id,
+            'company_certificate_id' => $certificate->id,
+            'mode' => (string) $request->validated('mode'),
+            'environment' => $company->fiscal_environment->value,
+            'uf' => $company->uf,
+            'status' => 'pending',
+            'requested_at' => now(),
+        ]);
+
+        $command = AgentCommand::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'tenant_id' => $company->tenant_id,
+            'company_id' => $company->id,
+            'agent_id' => $agent->id,
+            'type' => CommandType::TestSefazConnectivity,
+            'status' => CommandStatus::Pending,
+            'priority' => 5,
+            'payload' => [
+                'mode' => $test->mode,
+                'company_certificate_uuid' => $certificate->uuid,
+                'sefaz_connectivity_test_uuid' => $test->uuid,
+                'cnpj' => $company->cnpj,
+                'uf' => $company->uf,
+                'environment' => $company->fiscal_environment->value,
+                'thumbprint' => $certificate->thumbprint,
+                'store_location' => $this->storeLocation($certificate->store_scope),
+                'correlation_id' => (string) Str::uuid(),
+            ],
+            'available_at' => now(),
+            'max_attempts' => 1,
+            'idempotency_key' => 'test-sefaz-connectivity:'.$test->id.':'.Str::uuid(),
+        ]);
+
+        $test->forceFill(['agent_command_id' => $command->id])->save();
+
+        return back()->with('success', 'Comando de teste de conectividade SEFAZ enviado ao agente.');
+    }
+
+    private function storeLocation(mixed $value): ?string
+    {
+        $storeLocation = is_string($value) ? $value : null;
+        if ($storeLocation === null) {
+            return null;
+        }
+
+        return Arr::get([
+            'CurrentUser' => 'CurrentUser',
+            'LocalMachine' => 'LocalMachine',
+            'current_user' => 'CurrentUser',
+            'local_machine' => 'LocalMachine',
+        ], $storeLocation);
     }
 }

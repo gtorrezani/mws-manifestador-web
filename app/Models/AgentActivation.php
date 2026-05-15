@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ActivationStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\AgentActivationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,9 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgentActivation extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<AgentActivationFactory> */
     use HasFactory;
-
     use HasPublicUuid;
 
     protected $guarded = ['id'];

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ManifestationEventType;
 use App\Enums\ManifestationRecordStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\RecipientManifestationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,9 +14,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RecipientManifestation extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<RecipientManifestationFactory> */
     use HasFactory;
-
     use HasPublicUuid;
 
     protected $guarded = ['id'];

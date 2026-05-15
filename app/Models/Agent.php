@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AgentStatus;
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\HasPublicUuid;
 use Database\Factories\AgentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,9 +15,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Agent extends Model
 {
+    use BelongsToCompany;
+
     /** @use HasFactory<AgentFactory> */
     use HasFactory;
-
     use HasPublicUuid;
     use SoftDeletes;
 

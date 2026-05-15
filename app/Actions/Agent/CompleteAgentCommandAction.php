@@ -4,12 +4,15 @@ namespace App\Actions\Agent;
 
 use App\Actions\Certificates\RecordAgentCertificateInventoryAction;
 use App\Actions\Certificates\RecordCertificateTestResultAction;
+use App\Actions\Certificates\RecordSefazConnectivityTestResultAction;
+use App\Actions\FiscalDocument\RecordFiscalDocumentSyncResultAction;
 use App\Actions\FiscalDocument\RecordManifestationResultAction;
 use App\DTOs\Agent\CommandResultData;
 use App\Enums\CommandStatus;
 use App\Enums\CommandType;
 use App\Models\Agent;
 use App\Models\AgentCommand;
+use App\Models\AuditLog;
 use App\Services\Agent\SefazResultRecorder;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -21,8 +24,10 @@ class CompleteAgentCommandAction
     public function __construct(
         private readonly SefazResultRecorder $sefazResultRecorder,
         private readonly RecordManifestationResultAction $recordManifestationResultAction,
+        private readonly RecordFiscalDocumentSyncResultAction $recordFiscalDocumentSyncResultAction,
         private readonly RecordAgentCertificateInventoryAction $recordAgentCertificateInventoryAction,
         private readonly RecordCertificateTestResultAction $recordCertificateTestResultAction,
+        private readonly RecordSefazConnectivityTestResultAction $recordSefazConnectivityTestResultAction,
     ) {}
 
     /** @return array{status: string, idempotent?: bool, completed_at?: string|null} */
@@ -73,12 +78,34 @@ class CompleteAgentCommandAction
 
             $this->sefazResultRecorder->recordSuccessfulResult($command, $data);
             $this->recordManifestationResultAction->recordCompleted($command, $data);
+            if ($command->type === CommandType::SyncFiscalDocuments) {
+                $this->recordFiscalDocumentSyncResultAction->recordCompleted($command, $data);
+            }
+
             if ($command->type === CommandType::ListCertificates) {
                 $this->recordAgentCertificateInventoryAction->execute($agent, $command, $data);
             }
 
             if ($command->type === CommandType::TestCertificate) {
                 $this->recordCertificateTestResultAction->recordCompleted($command, $data);
+            }
+
+            if ($command->type === CommandType::TestSefazConnectivity) {
+                $this->recordSefazConnectivityTestResultAction->recordCompleted($command, $data);
+            }
+
+            if ($command->type === CommandType::AgentDiagnosticsRequested) {
+                AuditLog::query()->create([
+                    'tenant_id' => $agent->tenant_id,
+                    'company_id' => $agent->company_id,
+                    'agent_id' => $agent->id,
+                    'event' => 'agent.diagnostics.command_completed',
+                    'metadata' => [
+                        'result' => $data->result,
+                        'command_uuid' => $command->uuid,
+                    ],
+                    'occurred_at' => now(),
+                ]);
             }
 
             return [

@@ -15,4 +15,5 @@ enum CommandType: string
     case TestCertificate = 'test_certificate';
     case ListCertificates = 'list_certificates';
     case TestSefazConnectivity = 'test_sefaz_connectivity';
+    case AgentDiagnosticsRequested = 'agent_diagnostics_requested';
 }

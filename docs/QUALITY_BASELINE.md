@@ -45,3 +45,43 @@ Execution date: 2026-05-15 13:11:13 -03:00
 - Release the lock on `node_modules\@esbuild\win32-x64\esbuild.exe` and rerun `npm ci` followed by `npm run quality`.
 - Investigate PHPUnit deprecations under PHP 8.5.3, or run the suite under the project platform target PHP 8.3.
 - Keep the HMAC fixture synchronized with the .NET agent fixture whenever the authentication contract changes.
+
+## Rodada 2
+
+Execution date: 2026-05-15 13:44:28 -03:00
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git branch --show-current` | Confirmed `codex/quality-baseline-hmac-contract`. |
+| `git status -sb` | Confirmed many unrelated local changes were already present before this round. They were preserved. |
+| `composer phpstan` | Initially failed with the 3 known PHPStan errors; passed after the focused fixes. |
+| `composer pint-test` | Initially failed only on formatting in `app\Models\User.php`; passed after Pint formatting. |
+| `vendor\bin\pint app\Models\User.php tests\Feature\Auth\AuthenticationTest.php tests\Feature\CompanyContextTest.php` | Passed and formatted `app\Models\User.php`. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 89 tests, 497 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. Pint, PHPStan, and PHPUnit completed successfully. PHPUnit still reported 2 deprecations under PHP 8.5.3. |
+| `Get-Process node,esbuild,vite` and `Get-CimInstance Win32_Process ...` | Found a Vite/esbuild process running from this repository and holding `node_modules\@esbuild\win32-x64\esbuild.exe`. |
+| `Stop-Process -Id 7500,28700,23616` | Stopped the local Vite/esbuild/cmd processes tied to this repository. |
+| `npm.cmd ci` | Passed after the local Vite/esbuild process was stopped. No `node_modules` backup rename was needed. |
+| `npm.cmd run lint` | Passed. |
+| `npm.cmd run format:check` | Passed. |
+| `npm.cmd run typecheck` | Passed. |
+| `npm.cmd run build` | Passed. |
+| `npm.cmd run quality` | Passed. |
+
+### PHPStan fixes
+
+- `app\Models\User.php`: added the Larastan generic trait annotation for `HasFactory<UserFactory>`.
+- `tests\Feature\Auth\AuthenticationTest.php`: refreshed the user into a local variable and asserted it is not null before checking `last_login_at`.
+- `tests\Feature\CompanyContextTest.php`: removed the uninitialized test property and created the authenticated user through a small helper inside each test.
+
+### npm/esbuild status
+
+The prior `EPERM` on `node_modules\@esbuild\win32-x64\esbuild.exe` was caused by a local Vite/esbuild process running from this repository. After stopping that process, `npm.cmd ci` passed. `node_modules` was not deleted or renamed.
+
+### Remaining notes
+
+- The quality baseline is now green for PHP and Node on this machine.
+- PHPUnit still reports 2 deprecations when run under PHP 8.5.3. This is not a functional failure, but should be reviewed separately or compared against the project target PHP 8.3 runtime.
+- Unrelated local changes remain in the worktree and were not included in this baseline round.

@@ -201,11 +201,14 @@ class AgentApiV1Test extends TestCase
             'thumbprint' => 'ABC123456789',
             'cnpj' => '12345678000195',
             'subject' => 'CN=Empresa Teste:12345678000195',
-            'issuer' => 'CN=AC Teste',
+            'issuer' => 'CN=AC SOLUTI ICP-Brasil',
             'store_location' => 'CurrentUser',
             'store_scope' => 'current_user',
             'has_private_key' => true,
             'is_expired' => false,
+            'is_fiscal_candidate' => true,
+            'is_icp_brasil' => true,
+            'classification' => 'fiscal_candidate',
             'is_valid' => true,
         ]);
     }

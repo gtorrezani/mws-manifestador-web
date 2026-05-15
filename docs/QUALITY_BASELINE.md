@@ -344,3 +344,74 @@ Deliberately left out:
 - Unstaged certificate classification backend, certificate UI, layout/navigation, docs/script, and related tests remain in the worktree and must be split into separate commits.
 - PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3; they did not fail the target quality gate but should be reviewed separately.
 - Next recommended block: certificate classification backend and tests, without certificate UI/navigation changes.
+
+## Rodada 6
+
+Execution date: 2026-05-15 14:18:22 -03:00
+
+### Scope decision
+
+Created the backend-only certificate classification slice. The commit includes schema/model/factory support, agent inventory persistence/classification, A3 link eligibility, A1 inspection/request validation hardening, backend controller props/flows needed by tests, sanitized fixtures, and direct backend tests. No certificate UI, frontend model types, status badge, company tabs, layout/navigation, installer docs, or installer scripts were staged.
+
+Included files:
+
+- `database/migrations/2026_05_14_060000_add_agent_certificate_classification_fields.php`
+- `app/Models/AgentCertificate.php`
+- `database/factories/AgentCertificateFactory.php`
+- `app/Actions/Certificates/RecordAgentCertificateInventoryAction.php`
+- `app/Actions/Certificates/LinkA3CertificateAction.php`
+- `app/Actions/Certificates/StoreA1CertificateAction.php`
+- `app/Services/Certificates/A1CertificateInspector.php`
+- `app/Http/Requests/Certificate/StoreA1CertificateRequest.php`
+- `app/Http/Controllers/Web/CertificateController.php`
+- `tests/Fixtures/list-certificates-result.json`
+- `tests/Feature/Agent/AgentApiV1Test.php`
+- `tests/Feature/Certificate/StoreA1CertificateRequestTest.php`
+- `docs/QUALITY_BASELINE.md`
+
+### Classification fields
+
+Added nullable/defaulted fields compatible with existing rows:
+
+- `common_name`
+- `document`
+- `document_type`
+- `store_name`
+- `is_certificate_authority`
+- `is_fiscal_candidate`
+- `is_icp_brasil`
+- `is_usable_for_client_auth`
+- `classification`
+- `rejection_reasons`
+- `warnings`
+
+The migration adds indexes for company-scoped fiscal-candidate and classification queries and removes the same indexes/columns on rollback.
+
+### Behavior covered
+
+- Agent certificate inventory is idempotent by tenant, company, agent, thumbprint, and Windows store location.
+- Fiscal classification is deterministic from private-key presence, expiration, CA flag, ICP-Brasil signal, client-auth usability, document presence, and supported store location.
+- Raw inventory payloads are sanitized before persistence, and known sensitive fields such as PINs, certificate passwords, and private keys remain prohibited by agent request validation.
+- A3 linking is restricted to eligible fiscal candidates scoped to the selected company and matching the company CNPJ.
+- A1 upload inspection validates PFX/P12 content, private key, expiration, fiscal ICP-Brasil signals, CNPJ, CA status, and compatible usage without persisting or logging plaintext certificate material beyond encrypted storage/password payloads.
+- Store A1 request validation accepts PFX/P12 uploads with generic MIME types while still rejecting non-certificate extensions.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and a mixed worktree with backend certificate candidates plus unrelated pending frontend/layout/docs changes. |
+| `git diff --name-status` | Identified pending files and confirmed the backend certificate candidate set. |
+| `vendor\bin\phpunit --colors=always tests\Feature\Agent\AgentApiV1Test.php tests\Feature\Certificate\StoreA1CertificateRequestTest.php` | Passed functionally: 25 tests, 111 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 90 tests, 501 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+| `npm.cmd run quality` | Not run in this round because no frontend or TypeScript files were staged for the backend certificate commit. |
+| `git diff --cached --check` | Passed. |
+
+### Remaining risks and next blocks
+
+- Unstaged certificate UI, frontend type/status updates, company tabs, layout/navigation, local installer docs/script, seeder updates, and auth test additions remain in the worktree and require separate review.
+- PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
+- Next recommended block: certificate UI and frontend type updates, staged separately from layout/navigation.

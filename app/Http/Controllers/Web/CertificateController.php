@@ -18,6 +18,7 @@ use App\Models\CompanyCertificate;
 use App\Models\SefazConnectivityTest;
 use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -40,9 +41,17 @@ class CertificateController extends Controller
             'agentCertificates' => AgentCertificate::query()
                 ->forCompany($company)
                 ->with(['agent:id,name,machine_name,status', 'company:id,legal_name,cnpj'])
+                ->where('is_fiscal_candidate', true)
                 ->latest('last_seen_at')
                 ->paginate(20)
                 ->withQueryString(),
+            'ignoredAgentCertificates' => AgentCertificate::query()
+                ->forCompany($company)
+                ->with(['agent:id,name,machine_name,status', 'company:id,legal_name,cnpj'])
+                ->where('is_fiscal_candidate', false)
+                ->latest('last_seen_at')
+                ->limit(20)
+                ->get(),
             'companyCertificates' => CompanyCertificate::query()
                 ->forCompany($company)
                 ->with(['company:id,legal_name,cnpj', 'agent:id,name,machine_name,status', 'agentCertificate:id,last_seen_at,has_private_key'])
@@ -58,9 +67,11 @@ class CertificateController extends Controller
         ]);
     }
 
-    public function requestAgentInventory(Agent $agent, CurrentCompanyContext $context): RedirectResponse
+    public function requestAgentInventory(Agent $agent, CurrentCompanyContext $context, Request $request): RedirectResponse
     {
         $this->abortUnlessBelongsToCurrentCompany($agent, $context);
+        $includeRejected = $request->boolean('include_rejected');
+        $includeExpired = $request->boolean('include_expired');
 
         AgentCommand::query()->create([
             'uuid' => (string) Str::uuid(),
@@ -70,13 +81,18 @@ class CertificateController extends Controller
             'type' => CommandType::ListCertificates,
             'status' => CommandStatus::Pending,
             'priority' => 5,
-            'payload' => [],
+            'payload' => [
+                'include_rejected' => $includeRejected,
+                'include_expired' => $includeExpired,
+            ],
             'available_at' => now(),
             'max_attempts' => 2,
             'idempotency_key' => 'list-certificates:'.$agent->id.':'.Str::uuid(),
         ]);
 
-        return back()->with('success', 'Comando para listar certificados enviado ao agente.');
+        return back()->with('success', $includeRejected
+            ? 'Comando de diagnóstico completo de certificados enviado ao agente.'
+            : 'Comando para listar certificados fiscais candidatos enviado ao agente.');
     }
 
     public function linkA3(
@@ -103,13 +119,17 @@ class CertificateController extends Controller
             abort(404);
         }
 
+        if (! $this->isLinkableFiscalCandidate($agentCertificate, $company->cnpj)) {
+            return back()->with('error', 'Este certificado local não foi classificado como certificado fiscal ICP-Brasil utilizável.');
+        }
+
         $action->execute(
             $company,
             $agentCertificate,
             is_string($request->validated('name')) ? $request->validated('name') : null,
         );
 
-        return back()->with('success', 'Certificado A3 vinculado a empresa.');
+        return back()->with('success', 'Certificado fiscal local vinculado a empresa.');
     }
 
     public function storeA1(
@@ -119,7 +139,7 @@ class CertificateController extends Controller
     ): RedirectResponse {
         $file = $request->file('certificate_file');
         if (! $file) {
-            abort(422, 'Arquivo do certificado nao informado.');
+            abort(422, 'Arquivo do certificado não informado.');
         }
 
         $action->execute(
@@ -129,7 +149,7 @@ class CertificateController extends Controller
             is_string($request->validated('name')) ? $request->validated('name') : null,
         );
 
-        return back()->with('success', 'Certificado A1 validado e armazenado com seguranca.');
+        return back()->with('success', 'Certificado A1 validado e armazenado com segurança.');
     }
 
     public function test(CompanyCertificate $certificate, CurrentCompanyContext $context): RedirectResponse
@@ -148,7 +168,7 @@ class CertificateController extends Controller
         }
 
         if (! $certificate->agent_id || ! $certificate->thumbprint) {
-            return back()->with('success', 'Certificado A3 sem agente ou thumbprint para teste.');
+            return back()->with('success', 'Certificado local sem agente ou thumbprint para teste.');
         }
 
         $agent = Agent::query()
@@ -187,6 +207,10 @@ class CertificateController extends Controller
             return back()->with('success', 'Certificado sem agente ou thumbprint para teste.');
         }
 
+        if (! $this->isUsableFiscalCandidate($certificate)) {
+            return back()->with('error', 'Este certificado local não foi classificado como certificado fiscal ICP-Brasil utilizável.');
+        }
+
         $agent = Agent::query()
             ->where('id', $certificate->agent_id)
             ->where('tenant_id', $certificate->tenant_id)
@@ -223,7 +247,7 @@ class CertificateController extends Controller
         $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
 
         if ($certificate->type->value !== 'a3') {
-            return back()->with('success', 'Teste de conectividade SEFAZ deve usar certificado A3 vinculado ao agente.');
+            return back()->with('success', 'Teste de conectividade SEFAZ deve usar certificado local vinculado ao agente.');
         }
 
         if (! $certificate->agent_id || ! $certificate->thumbprint) {
@@ -295,5 +319,27 @@ class CertificateController extends Controller
             'current_user' => 'CurrentUser',
             'local_machine' => 'LocalMachine',
         ], $storeLocation);
+    }
+
+    private function isLinkableFiscalCandidate(AgentCertificate $certificate, ?string $companyCnpj): bool
+    {
+        $normalizedCompanyCnpj = preg_replace('/\D/', '', (string) $companyCnpj);
+
+        return $this->isUsableFiscalCandidate($certificate)
+            && $certificate->document_type === 'cnpj'
+            && is_string($certificate->cnpj)
+            && $certificate->cnpj !== ''
+            && $normalizedCompanyCnpj === preg_replace('/\D/', '', $certificate->cnpj);
+    }
+
+    private function isUsableFiscalCandidate(AgentCertificate $certificate): bool
+    {
+        return $certificate->is_fiscal_candidate === true
+            && $certificate->is_icp_brasil === true
+            && $certificate->is_usable_for_client_auth === true
+            && $certificate->is_certificate_authority === false
+            && $certificate->is_expired === false
+            && $certificate->has_private_key === true
+            && $certificate->classification === 'fiscal_candidate';
     }
 }

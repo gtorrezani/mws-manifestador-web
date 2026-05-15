@@ -7,11 +7,18 @@ use App\Models\AgentCertificate;
 use App\Models\Company;
 use App\Models\CompanyCertificate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class LinkA3CertificateAction
 {
     public function execute(Company $company, AgentCertificate $agentCertificate, ?string $name): CompanyCertificate
     {
+        if (! $this->canLink($company, $agentCertificate)) {
+            throw ValidationException::withMessages([
+                'agent_certificate_id' => 'Certificado local não elegível para a empresa selecionada.',
+            ]);
+        }
+
         /** @var CompanyCertificate $certificate */
         $certificate = CompanyCertificate::query()->firstOrNew([
             'tenant_id' => $company->tenant_id,
@@ -27,7 +34,7 @@ class LinkA3CertificateAction
             'status' => $agentCertificate->status,
             'agent_id' => $agentCertificate->agent_id,
             'agent_certificate_id' => $agentCertificate->id,
-            'name' => $name ?: 'Certificado A3 '.$company->legal_name,
+            'name' => $name ?: 'Certificado fiscal '.$company->legal_name,
             'subject_name' => $agentCertificate->subject_name,
             'issuer_name' => $agentCertificate->issuer_name,
             'serial_number' => $agentCertificate->serial_number,
@@ -37,7 +44,12 @@ class LinkA3CertificateAction
             'store_scope' => $agentCertificate->store_scope,
             'metadata' => [
                 'cnpj' => $agentCertificate->cnpj,
+                'document' => $agentCertificate->document,
+                'document_type' => $agentCertificate->document_type,
                 'source' => 'agent_inventory',
+                'classification' => $agentCertificate->classification,
+                'type_estimate' => 'a1_a3_unconfirmed',
+                'warnings' => $agentCertificate->warnings ?? [],
             ],
             'last_validated_at' => $agentCertificate->last_test_status === 'valid' ? now() : null,
             'last_tested_at' => $agentCertificate->last_tested_at,
@@ -46,5 +58,24 @@ class LinkA3CertificateAction
         ])->save();
 
         return $certificate;
+    }
+
+    private function canLink(Company $company, AgentCertificate $agentCertificate): bool
+    {
+        $companyCnpj = preg_replace('/\D/', '', (string) $company->cnpj);
+        $certificateCnpj = preg_replace('/\D/', '', (string) $agentCertificate->cnpj);
+
+        return $agentCertificate->tenant_id === $company->tenant_id
+            && $agentCertificate->company_id === $company->id
+            && $agentCertificate->is_fiscal_candidate === true
+            && $agentCertificate->is_icp_brasil === true
+            && $agentCertificate->is_usable_for_client_auth === true
+            && $agentCertificate->is_certificate_authority === false
+            && $agentCertificate->is_expired === false
+            && $agentCertificate->has_private_key === true
+            && $agentCertificate->classification === 'fiscal_candidate'
+            && $agentCertificate->document_type === 'cnpj'
+            && $companyCnpj !== ''
+            && $certificateCnpj === $companyCnpj;
     }
 }

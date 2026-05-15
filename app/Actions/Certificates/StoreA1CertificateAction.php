@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class StoreA1CertificateAction
 {
@@ -22,6 +23,12 @@ class StoreA1CertificateAction
     public function execute(Company $company, UploadedFile $file, string $password, ?string $name): CompanyCertificate
     {
         $inspected = $this->inspector->inspect($file, $password);
+        if ($inspected['cnpj'] !== $company->cnpj) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'CNPJ do certificado não corresponde à empresa selecionada.',
+            ]);
+        }
+
         $disk = (string) config('filesystems.default', 'local');
         $path = 'certificates/a1/'.(string) Str::uuid().'.pfx.enc';
 

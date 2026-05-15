@@ -197,6 +197,52 @@ Risk: medium. Settings access code must be updated carefully.
 
 Rollback: keep old unique until new access path is proven; remove new columns only after no writes use them.
 
+#### Implementation note - 2026-05-15
+
+Implemented as commit target `database: make system setting scope uniqueness deterministic`.
+
+Problem:
+
+- the legacy unique index `system_settings_scope_key_unique` uses nullable `tenant_id` and `company_id`;
+- MySQL and PostgreSQL allow multiple unique rows when one indexed component is `NULL`;
+- this means duplicate global settings or tenant-scoped settings could exist for the same `key`.
+
+Chosen strategy:
+
+- add a non-null deterministic `scope_key` string;
+- keep legacy `tenant_id` and `company_id` columns for compatibility;
+- keep the legacy unique index during this transition;
+- add a new unique index on `scope_key` + `key`.
+
+Scope key rule:
+
+- global setting: `global`;
+- tenant setting: `tenant:{tenant_id}`;
+- company setting: `company:{company_id}`.
+
+The company scope intentionally uses `company_id` because it is already a global primary key and avoids ambiguity if old rows have inconsistent or missing `tenant_id`.
+
+Migration behavior:
+
+- adds `system_settings.scope_key` with default `global`;
+- backfills every existing row from current `tenant_id`/`company_id`;
+- checks for duplicate logical settings after backfill and before creating the deterministic unique index;
+- if duplicates exist, the migration fails with a clear error and does not delete or merge rows automatically;
+- adds `system_settings_scope_key_idx`;
+- adds `system_settings_scope_key_deterministic_unique` on `(scope_key, key)`.
+
+Code compatibility:
+
+- `SystemSetting::makeScopeKey()` centralizes the scope calculation;
+- the model recalculates `scope_key` on save from `tenant_id` and `company_id`;
+- existing settings reads and writes keep using legacy scope columns, while new writes also persist the deterministic key.
+
+Remaining risk:
+
+- raw database writes that bypass Eloquent must provide a correct `scope_key`;
+- a later cleanup block can decide whether to remove or replace the legacy nullable unique after production data is verified;
+- this block does not address tenant/company composite integrity or certificate inventory uniqueness.
+
 ### Block 3 - Certificate canonicalization
 
 Goal: remove duplicate agent certificate fields safely.

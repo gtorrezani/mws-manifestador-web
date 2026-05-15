@@ -13,7 +13,8 @@ class SystemSettingFactory extends Factory
     public function definition(): array
     {
         return [
-            'key' => 'agent.polling_interval_seconds',
+            'scope_key' => SystemSetting::makeScopeKey(null, null),
+            'key' => 'setting.'.$this->faker->unique()->slug(2),
             'value' => ['value' => 30],
             'is_encrypted' => false,
             'description' => 'Default agent polling interval.',

@@ -165,14 +165,27 @@ function formatDateTime(value: string | null | undefined): string {
     minute: '2-digit',
   });
 }
+
+function sefazText(document: FiscalDocument): string {
+  if (!document.last_sefaz_status_code && !document.last_sefaz_message) {
+    return '';
+  }
+
+  return [document.last_sefaz_status_code, document.last_sefaz_message].filter(Boolean).join(' - ');
+}
+
+function isAwaitingManifestation(document: FiscalDocument): boolean {
+  return document.manifestation_status.endsWith('_requested') && !sefazText(document);
+}
+
+function isAwaitingXml(document: FiscalDocument): boolean {
+  return ['pending', 'processing'].includes(document.xml_download_status) && !sefazText(document);
+}
 </script>
 
 <template>
   <Head title="Documentos Fiscais" />
-  <AppLayout
-    title="Documentos Fiscais"
-    subtitle="Consulta operacional dos documentos destinados e geração de comandos para o agente."
-  >
+  <AppLayout title="Documentos Fiscais">
     <form class="toolbar" @submit.prevent="applyFilters">
       <FormField label="Período inicial">
         <input v-model="filterForm.period_from" class="input" type="date" />
@@ -303,8 +316,17 @@ function formatDateTime(value: string | null | undefined): string {
               <div class="muted mono">{{ document.issuer_cnpj ?? '-' }}</div>
             </td>
             <td>{{ formatCurrency(document.total_amount) }}</td>
-            <td><StatusBadge :status="document.manifestation_status" /></td>
-            <td><StatusBadge :status="document.xml_download_status" /></td>
+            <td>
+              <StatusBadge :status="document.manifestation_status" />
+              <div v-if="sefazText(document)" class="sefaz-note">{{ sefazText(document) }}</div>
+              <div v-else-if="isAwaitingManifestation(document)" class="sefaz-note">
+                Aguardando processamento e retorno da SEFAZ.
+              </div>
+            </td>
+            <td>
+              <StatusBadge :status="document.xml_download_status" />
+              <div v-if="isAwaitingXml(document)" class="sefaz-note">Solicitacao registrada; XML ainda sem retorno.</div>
+            </td>
             <td>
               <div class="row-actions">
                 <button class="button" type="button" @click="openManifestation(document, 'operation_acknowledgement')">
@@ -366,7 +388,9 @@ function formatDateTime(value: string | null | undefined): string {
 
         <div class="actions">
           <button class="button" type="button" @click="manifestationOpen = false">Cancelar</button>
-          <button class="button primary" type="submit" :disabled="manifestationForm.processing">Criar comando</button>
+          <button class="button primary" type="submit" :disabled="manifestationForm.processing">
+            {{ manifestationForm.processing ? 'Enviando...' : 'Enviar para SEFAZ' }}
+          </button>
         </div>
       </form>
     </Modal>
@@ -427,6 +451,14 @@ function formatDateTime(value: string | null | undefined): string {
   display: grid;
   gap: 6px;
   padding: 12px;
+}
+
+.sefaz-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 6px;
+  max-width: 260px;
 }
 
 .confirm-box {

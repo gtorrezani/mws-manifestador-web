@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <Head title="Diagnóstico do agente" />
-  <AppLayout :title="`Diagnóstico - ${agent.name}`" subtitle="Eventos técnicos recebidos do agente local.">
+  <AppLayout :title="`Diagnóstico - ${agent.name}`">
     <Link class="button" href="/agents">Voltar</Link>
 
     <section class="panel diagnostics">

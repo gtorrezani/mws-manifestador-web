@@ -24,11 +24,24 @@ const form = useForm({
   cnpj: '',
   state_registration: '',
   uf: '',
-  fiscal_environment: 'production',
   is_active: true,
 });
 
 const modalTitle = computed(() => (editingCompany.value ? 'Editar empresa' : 'Cadastrar empresa'));
+
+function certificateText(company: Company): string {
+  const certificate = company.certificates?.[0];
+
+  if (!certificate) {
+    return 'Nenhum certificado cadastrado';
+  }
+
+  const type = certificate.type.toUpperCase();
+  const status = certificate.status === 'active' ? 'ativo' : certificate.status;
+  const validUntil = certificate.valid_until ? ` ate ${certificate.valid_until}` : '';
+
+  return `${type} ${status}${validUntil}`;
+}
 
 function openCreate(): void {
   editingCompany.value = null;
@@ -45,7 +58,6 @@ function openEdit(company: Company): void {
   form.trade_name = company.trade_name ?? '';
   form.cnpj = company.cnpj;
   form.uf = company.uf;
-  form.fiscal_environment = company.fiscal_environment;
   form.is_active = company.is_active;
   modalOpen.value = true;
 }
@@ -70,11 +82,10 @@ function submit(): void {
 
 <template>
   <Head title="Empresas" />
-  <AppLayout title="Empresas" subtitle="Cadastro das empresas atendidas e vínculos operacionais.">
-    <div class="section-title">
-      <h2>Empresas cadastradas</h2>
+  <AppLayout title="Empresas">
+    <template #actions>
       <button class="button primary" type="button" @click="openCreate">Nova empresa</button>
-    </div>
+    </template>
 
     <div class="table-wrap">
       <table>
@@ -83,7 +94,6 @@ function submit(): void {
             <th>CNPJ</th>
             <th>Razão social</th>
             <th>UF</th>
-            <th>Ambiente</th>
             <th>Agente vinculado</th>
             <th>Certificado</th>
             <th>Status</th>
@@ -98,14 +108,13 @@ function submit(): void {
               <div v-if="company.trade_name" class="muted">{{ company.trade_name }}</div>
             </td>
             <td>{{ company.uf }}</td>
-            <td>{{ company.fiscal_environment === 'production' ? 'Produção' : 'Homologação' }}</td>
             <td>{{ company.agents?.[0]?.name ?? 'Não vinculado' }}</td>
-            <td class="muted">Gerenciado pelo agente</td>
+            <td>{{ certificateText(company) }}</td>
             <td><StatusBadge :status="company.is_active ? 'active' : 'inactive'" /></td>
             <td><button class="button" type="button" @click="openEdit(company)">Editar</button></td>
           </tr>
           <tr v-if="props.companies.data.length === 0">
-            <td colspan="8" class="muted">Nenhuma empresa cadastrada.</td>
+            <td colspan="7" class="muted">Nenhuma empresa cadastrada.</td>
           </tr>
         </tbody>
       </table>
@@ -125,12 +134,6 @@ function submit(): void {
         </FormField>
         <FormField label="Nome fantasia" :error="form.errors.trade_name">
           <input v-model="form.trade_name" class="input" />
-        </FormField>
-        <FormField label="Ambiente fiscal" :error="form.errors.fiscal_environment" required>
-          <select v-model="form.fiscal_environment" class="select">
-            <option value="production">Produção</option>
-            <option value="homologation">Homologação</option>
-          </select>
         </FormField>
         <label class="check">
           <input v-model="form.is_active" type="checkbox" />

@@ -29,11 +29,11 @@ class MwsBaselineSeeder extends Seeder
             ],
             [
                 'uuid' => (string) Str::uuid(),
-                'legal_name' => 'Empresa de Homologacao',
-                'trade_name' => 'Homologacao',
+                'legal_name' => 'Empresa de Producao',
+                'trade_name' => 'Producao',
                 'state_registration' => null,
                 'uf' => 'SP',
-                'fiscal_environment' => FiscalEnvironment::Homologation,
+                'fiscal_environment' => FiscalEnvironment::Production,
                 'is_active' => true,
             ],
         );

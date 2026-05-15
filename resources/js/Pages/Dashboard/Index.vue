@@ -22,7 +22,7 @@ defineProps<{
 
 <template>
   <Head title="Dashboard" />
-  <AppLayout title="Dashboard" subtitle="Acompanhamento operacional das consultas, manifestações e agentes locais.">
+  <AppLayout title="Dashboard">
     <div class="grid cols-4">
       <StatCard label="Notas encontradas" :value="metrics.documentsFound" />
       <StatCard label="XMLs baixados" :value="metrics.xmlDownloaded" tone="success" />

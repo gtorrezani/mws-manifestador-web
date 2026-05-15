@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\FiscalEnvironment;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\StoreCompanyRequest;
 use App\Models\Agent;
@@ -17,7 +18,12 @@ class CompanyController extends Controller
     {
         return Inertia::render('Companies/Index', [
             'companies' => Company::query()
-                ->with(['agents:id,company_id,name,status,last_seen_at'])
+                ->with([
+                    'agents:id,company_id,name,status,last_seen_at',
+                    'certificates' => fn ($query) => $query
+                        ->select(['id', 'company_id', 'name', 'type', 'status', 'valid_until'])
+                        ->latest('valid_until'),
+                ])
                 ->latest('id')
                 ->paginate(15)
                 ->withQueryString(),
@@ -28,15 +34,24 @@ class CompanyController extends Controller
 
     public function store(StoreCompanyRequest $request): RedirectResponse
     {
-        Company::query()->create($request->validated());
+        Company::query()->create($this->companyData($request));
 
         return back()->with('success', 'Empresa cadastrada com sucesso.');
     }
 
     public function update(StoreCompanyRequest $request, Company $company): RedirectResponse
     {
-        $company->update($request->validated());
+        $company->update($this->companyData($request));
 
         return back()->with('success', 'Empresa atualizada com sucesso.');
+    }
+
+    /** @return array<string, mixed> */
+    private function companyData(StoreCompanyRequest $request): array
+    {
+        return [
+            ...$request->validated(),
+            'fiscal_environment' => FiscalEnvironment::Production,
+        ];
     }
 }

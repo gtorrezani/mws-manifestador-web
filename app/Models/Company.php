@@ -38,15 +38,16 @@ class Company extends Model
         return $this->hasMany(Agent::class);
     }
 
+    /** @return HasMany<CompanyCertificate, $this> */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(CompanyCertificate::class);
+    }
+
     /** @return HasMany<FiscalDocument, $this> */
     public function fiscalDocuments(): HasMany
     {
         return $this->hasMany(FiscalDocument::class);
     }
 
-    /** @return HasMany<CompanyCertificate, $this> */
-    public function certificates(): HasMany
-    {
-        return $this->hasMany(CompanyCertificate::class);
-    }
 }

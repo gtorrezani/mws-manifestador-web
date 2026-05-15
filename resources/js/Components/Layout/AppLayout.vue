@@ -6,6 +6,7 @@ import { computed, ref, watch } from 'vue';
 const props = defineProps<{
   title: string;
   subtitle?: string;
+  showSubtitle?: boolean;
 }>();
 
 const page = usePage();
@@ -16,7 +17,9 @@ const flash = computed(() => {
   return page.props.flash as
     | {
         success?: string;
+        warning?: string;
         error?: string;
+        info?: string;
         activationCode?: string | { code: string; expires_at?: string | null };
       }
     | undefined;
@@ -28,8 +31,8 @@ const navItems = [
   { label: 'Agentes', href: '/agents' },
   { label: 'Certificados', href: '/certificates' },
   { label: 'Documentos Fiscais', href: '/fiscal-documents' },
-  { label: 'Histórico', href: '/history' },
-  { label: 'Configurações', href: '/settings' },
+  { label: 'Historico', href: '/history' },
+  { label: 'Configuracoes', href: '/settings' },
 ];
 
 const environmentLabel = computed(() => {
@@ -37,7 +40,7 @@ const environmentLabel = computed(() => {
     return 'Sem empresa ativa';
   }
 
-  return currentCompany.value.fiscal_environment === 'production' ? 'Produção' : 'Homologação';
+  return currentCompany.value.fiscal_environment === 'production' ? 'Producao' : 'Homologacao';
 });
 
 watch(
@@ -66,6 +69,10 @@ function switchCompany(): void {
 function formatCnpj(value: string): string {
   return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
+
+function logout(): void {
+  router.post('/logout');
+}
 </script>
 
 <template>
@@ -91,14 +98,18 @@ function formatCnpj(value: string): string {
 
     <main class="content">
       <header class="topbar">
-        <div>
+        <div class="title-block">
           <h1>{{ props.title }}</h1>
-          <p v-if="props.subtitle">{{ props.subtitle }}</p>
+          <p v-if="props.showSubtitle && props.subtitle">{{ props.subtitle }}</p>
+        </div>
+        <div class="topbar-actions">
+          <slot v-if="$slots.actions" name="actions" />
+          <button class="button danger" type="button" @click="logout">Sair</button>
         </div>
         <div class="company-switcher">
           <div v-if="currentCompany" class="company-summary">
             <strong>{{ currentCompany.trade_name || currentCompany.legal_name }}</strong>
-            <span>{{ formatCnpj(currentCompany.cnpj) }} · {{ currentCompany.uf }}</span>
+            <span>{{ formatCnpj(currentCompany.cnpj) }} - {{ currentCompany.uf }}</span>
           </div>
           <select
             v-if="availableCompanies.length > 0"
@@ -114,15 +125,17 @@ function formatCnpj(value: string): string {
         </div>
       </header>
 
-      <div v-if="flash?.success" class="flash">{{ flash.success }}</div>
-      <div v-if="flash?.error" class="flash error">{{ flash.error }}</div>
+      <div v-if="flash?.success" class="flash success">{{ flash.success }}</div>
+      <div v-if="flash?.warning" class="flash warning">{{ flash.warning }}</div>
+      <div v-if="flash?.error" class="flash danger">{{ flash.error }}</div>
+      <div v-if="flash?.info" class="flash info">{{ flash.info }}</div>
       <div v-if="flash?.activationCode" class="flash">
-        Código de ativação gerado:
+        Codigo de ativacao gerado:
         <strong class="mono">
           {{ typeof flash.activationCode === 'string' ? flash.activationCode : flash.activationCode.code }}
         </strong>
         <span v-if="typeof flash.activationCode !== 'string' && flash.activationCode.expires_at">
-          , válido até {{ flash.activationCode.expires_at }}
+          , valido ate {{ flash.activationCode.expires_at }}
         </span>
       </div>
 
@@ -136,12 +149,6 @@ function formatCnpj(value: string): string {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
-}
-
-.flash.error {
-  background: #fef3f2;
-  border-color: #fecdca;
-  color: #b42318;
 }
 
 .sidebar {
@@ -204,9 +211,17 @@ nav {
   margin: 0;
 }
 
-.topbar p {
+.title-block p {
   color: var(--muted);
   margin: 5px 0 0;
+}
+
+.topbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .company-switcher {
@@ -275,6 +290,7 @@ nav {
     flex-direction: column;
   }
 
+  .topbar-actions,
   .company-switcher {
     justify-content: flex-start;
     width: 100%;

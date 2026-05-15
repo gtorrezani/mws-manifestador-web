@@ -21,7 +21,7 @@ class CompanyFactory extends Factory
             'cnpj' => fake()->unique()->numerify('##############'),
             'state_registration' => fake()->optional()->numerify('#########'),
             'uf' => fake()->randomElement(['SP', 'PR', 'SC', 'RS', 'MG']),
-            'fiscal_environment' => FiscalEnvironment::Homologation,
+            'fiscal_environment' => FiscalEnvironment::Production,
             'is_active' => true,
         ];
     }

@@ -15,9 +15,11 @@ defineProps<{
     created_at: string | null;
     responses?: Array<{
       id: number;
-      status_code: string | null;
-      reason: string | null;
-      protocol_number: string | null;
+      status: string | null;
+      http_status_code: number | null;
+      sefaz_status_code: string | null;
+      sefaz_message: string | null;
+      received_at: string | null;
     }>;
   }>;
 }>();
@@ -33,7 +35,7 @@ const technicalMessage = (code: string | null, message: string | null): string =
 
 <template>
   <Head title="Histórico" />
-  <AppLayout title="Histórico" subtitle="Rastreabilidade dos comandos, tentativas e retornos SEFAZ.">
+  <AppLayout title="Histórico">
     <section class="panel">
       <div class="section-title">
         <h2>Comandos</h2>
@@ -89,7 +91,7 @@ const technicalMessage = (code: string | null, message: string | null): string =
               <th>Correlação</th>
               <th>Status SEFAZ</th>
               <th>Mensagem</th>
-              <th>Protocolo</th>
+              <th>HTTP</th>
               <th>Data/hora</th>
             </tr>
           </thead>
@@ -97,9 +99,9 @@ const technicalMessage = (code: string | null, message: string | null): string =
             <tr v-for="request in sefazRequests" :key="request.id">
               <td class="mono">{{ request.service }}</td>
               <td class="mono">{{ request.correlation_id ?? '-' }}</td>
-              <td>{{ request.responses?.[0]?.status_code ?? request.status ?? '-' }}</td>
-              <td>{{ request.responses?.[0]?.reason ?? '-' }}</td>
-              <td class="mono">{{ request.responses?.[0]?.protocol_number ?? '-' }}</td>
+              <td>{{ request.responses?.[0]?.sefaz_status_code ?? request.responses?.[0]?.status ?? '-' }}</td>
+              <td>{{ request.responses?.[0]?.sefaz_message ?? '-' }}</td>
+              <td class="mono">{{ request.responses?.[0]?.http_status_code ?? '-' }}</td>
               <td>{{ request.created_at ?? '-' }}</td>
             </tr>
             <tr v-if="sefazRequests.length === 0">

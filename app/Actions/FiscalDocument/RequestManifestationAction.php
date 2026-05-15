@@ -2,6 +2,7 @@
 
 namespace App\Actions\FiscalDocument;
 
+use App\Enums\FiscalEnvironment;
 use App\Enums\ManifestationEventType;
 use App\Enums\ManifestationRecordStatus;
 use App\Enums\ManifestationStatus;
@@ -55,7 +56,7 @@ class RequestManifestationAction
                 'access_key' => $document->access_key,
                 'cnpj' => $document->recipient_cnpj,
                 'uf' => $company->uf,
-                'environment' => $company->fiscal_environment->value,
+                'environment' => FiscalEnvironment::Production->value,
                 'justification' => $justification,
                 'recipient_manifestation_uuid' => $manifestation->uuid,
                 'previous_manifestation_status' => $transition->previousStatus->value,

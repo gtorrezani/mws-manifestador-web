@@ -27,6 +27,16 @@ export interface Company {
   is_active: boolean;
   agent?: Agent | null;
   agents?: Agent[];
+  certificates?: CompanyCertificate[];
+}
+
+export interface CompanyCertificate {
+  id: number;
+  company_id: number;
+  name: string | null;
+  type: string;
+  status: string;
+  valid_until: string | null;
 }
 
 export interface Agent {

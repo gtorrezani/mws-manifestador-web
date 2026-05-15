@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Web\AgentController;
 use App\Http\Controllers\Web\CertificateController;
 use App\Http\Controllers\Web\CompanyController;
@@ -10,11 +11,21 @@ use App\Http\Controllers\Web\HistoryController;
 use App\Http\Controllers\Web\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('current-company', [CurrentCompanyController::class, 'update'])->name('current-company.update');
+Route::middleware('guest')->group(function (): void {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+});
 
-Route::resource('companies', CompanyController::class)->only(['index', 'store', 'update']);
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('logout');
 
-Route::middleware('company.selected')->group(function (): void {
+Route::middleware('auth')->group(function (): void {
+    Route::resource('companies', CompanyController::class)->only(['index', 'store', 'update']);
+    Route::post('current-company', [CurrentCompanyController::class, 'update'])->name('current-company.update');
+});
+
+Route::middleware(['auth', 'company.selected'])->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');
 
     Route::get('agents', [AgentController::class, 'index'])->name('agents.index');

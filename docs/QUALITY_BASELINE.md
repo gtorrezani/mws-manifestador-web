@@ -283,3 +283,64 @@ Deliberately left out:
 - Application-wide route protection and company-user authorization remain pending and should be committed as a separate company-user scope.
 - Local worktree still contains broad pending company-user, certificate classification, certificate UI, docs, scripts, and test changes outside this commit.
 - PHPUnit deprecations under PHP 8.5.3 remain non-fatal and should be reviewed separately or compared against the target PHP 8.3 runtime.
+
+## Rodada 5
+
+Execution date: 2026-05-15 14:10:48 -03:00
+
+### Scope decision
+
+Created the company-user authorization slice after the CPF auth foundation. The commit scope is limited to the `company_user` pivot, authenticated user/company relations, current company selection, operational web route protection, and direct company context test setup.
+
+Included files:
+
+- `database/migrations/2026_05_15_020000_create_company_user_table.php`
+- `app/Models/User.php`
+- `app/Models/Company.php`
+- `app/Support/CompanyContext/CurrentCompanyContext.php`
+- `app/Http/Controllers/Web/CurrentCompanyController.php`
+- `app/Http/Requests/CurrentCompany/UpdateCurrentCompanyRequest.php`
+- `app/Http/Controllers/Web/CompanyController.php`
+- `routes/web.php`
+- `tests/Feature/CompanyContextTest.php`
+- `tests/Feature/Agent/AgentOperationsWebTest.php`
+- `tests/Feature/OperationalCompanyIsolationTest.php`
+- `docs/QUALITY_BASELINE.md`
+
+Deliberately left out:
+
+- certificate migrations, certificate actions/controllers/services, certificate fixtures, and certificate UI
+- `resources/js/Components/CompanyTabs.vue`
+- broad layout/navigation changes
+- local installer documentation/script updates
+- HMAC/API route changes
+- SEFAZ, fiscal XML, certificate credential, and fiscal domain behavior
+
+### Behavior covered
+
+- `company_user` links users and companies with foreign keys, timestamps, a duplicate-prevention unique key, and a lookup index.
+- `User::companies()` and `Company::users()` expose typed `BelongsToMany` relations through the pivot.
+- `CurrentCompanyContext` reads only companies linked to the authenticated user, ignores invalid session company IDs, and falls back to the first available linked active company.
+- `UpdateCurrentCompanyRequest` validates that the requested company is active and linked to the authenticated user.
+- `CompanyController` scopes company lists and related operational counts to the authenticated user's linked companies.
+- Operational web routes are now behind `auth` and current-company selection where applicable; `/login` remains `guest` and `/logout` remains `auth`.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and a mixed worktree with staged company-user files plus unrelated pending certificate/frontend/docs changes left unstaged. |
+| `git diff --name-status` | Identified pending files and confirmed the company-user candidate set. |
+| `vendor\bin\phpunit --colors=always tests\Feature\CompanyContextTest.php tests\Feature\Agent\AgentOperationsWebTest.php tests\Feature\OperationalCompanyIsolationTest.php` | Passed functionally: 32 tests, 283 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 90 tests, 501 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+| `npm.cmd run quality` | Not run in this round because no frontend files were staged for the company-user commit. |
+| `git diff --cached --check` | Passed. |
+
+### Remaining risks and next blocks
+
+- Unstaged certificate classification backend, certificate UI, layout/navigation, docs/script, and related tests remain in the worktree and must be split into separate commits.
+- PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3; they did not fail the target quality gate but should be reviewed separately.
+- Next recommended block: certificate classification backend and tests, without certificate UI/navigation changes.

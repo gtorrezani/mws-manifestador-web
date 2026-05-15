@@ -7,6 +7,7 @@ use App\Enums\CommandType;
 use App\Models\Agent;
 use App\Models\AgentCommand;
 use App\Models\Company;
+use App\Models\User;
 use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -281,6 +282,11 @@ class AgentOperationsWebTest extends TestCase
 
     private function withCurrentCompany(Company $company): self
     {
-        return $this->withSession([CurrentCompanyContext::SESSION_KEY => $company->id]);
+        $user = User::factory()->create();
+        $user->companies()->attach($company->id);
+
+        return $this
+            ->actingAs($user)
+            ->withSession([CurrentCompanyContext::SESSION_KEY => $company->id]);
     }
 }

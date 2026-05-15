@@ -49,6 +49,7 @@ class RequestManifestationAction
                 'status' => ManifestationRecordStatus::Pending,
                 'justification' => $justification,
                 'created_by' => $createdBy,
+                'created_by_user_id' => $createdBy,
             ]);
 
             $command = $this->createFiscalCommandAction->execute($company, $transition->commandType, [

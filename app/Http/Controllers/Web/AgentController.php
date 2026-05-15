@@ -138,6 +138,7 @@ class AgentController extends Controller
 
     public function requestDiagnostics(
         Agent $agent,
+        Request $request,
         CurrentCompanyContext $context,
         AgentStatusResolver $statusResolver,
     ): RedirectResponse {
@@ -162,6 +163,8 @@ class AgentController extends Controller
             'available_at' => now(),
             'max_attempts' => 1,
             'idempotency_key' => 'agent-diagnostics:'.$agent->id.':'.Str::uuid(),
+            'created_by' => $this->authenticatedUserId($request),
+            'created_by_user_id' => $this->authenticatedUserId($request),
         ]);
 
         return back()->with('success', 'Comando de diagnostico enviado ao agente.');

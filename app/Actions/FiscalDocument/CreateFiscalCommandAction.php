@@ -53,6 +53,7 @@ class CreateFiscalCommandAction
                 'attempts_count' => 0,
                 'max_attempts' => $type === CommandType::SyncFiscalDocuments ? 1 : 3,
                 'created_by' => $createdBy,
+                'created_by_user_id' => $createdBy,
             ],
         );
     }

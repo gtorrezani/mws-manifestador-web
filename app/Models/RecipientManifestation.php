@@ -18,6 +18,7 @@ class RecipientManifestation extends Model
 
     /** @use HasFactory<RecipientManifestationFactory> */
     use HasFactory;
+
     use HasPublicUuid;
 
     protected $guarded = ['id'];
@@ -32,6 +33,12 @@ class RecipientManifestation extends Model
     public function fiscalDocument(): BelongsTo
     {
         return $this->belongsTo(FiscalDocument::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
     /** @return HasMany<ManifestationAttempt, $this> */

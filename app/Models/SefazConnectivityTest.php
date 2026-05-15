@@ -49,4 +49,10 @@ class SefazConnectivityTest extends Model
     {
         return $this->belongsTo(AgentCommand::class);
     }
+
+    /** @return BelongsTo<User, $this> */
+    public function requestedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by_user_id');
+    }
 }

@@ -16,6 +16,7 @@ class AgentActivation extends Model
 
     /** @use HasFactory<AgentActivationFactory> */
     use HasFactory;
+
     use HasPublicUuid;
 
     protected $guarded = ['id'];
@@ -37,5 +38,11 @@ class AgentActivation extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function requestedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by_user_id');
     }
 }

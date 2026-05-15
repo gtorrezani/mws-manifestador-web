@@ -16,6 +16,7 @@ use App\Models\AgentCertificate;
 use App\Models\AgentCommand;
 use App\Models\CompanyCertificate;
 use App\Models\SefazConnectivityTest;
+use App\Models\User;
 use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,7 @@ class CertificateController extends Controller
         $this->abortUnlessBelongsToCurrentCompany($agent, $context);
         $includeRejected = $request->boolean('include_rejected');
         $includeExpired = $request->boolean('include_expired');
+        $userId = $this->authenticatedUserId($request);
 
         AgentCommand::query()->create([
             'uuid' => (string) Str::uuid(),
@@ -88,6 +90,8 @@ class CertificateController extends Controller
             'available_at' => now(),
             'max_attempts' => 2,
             'idempotency_key' => 'list-certificates:'.$agent->id.':'.Str::uuid(),
+            'created_by' => $userId,
+            'created_by_user_id' => $userId,
         ]);
 
         return back()->with('success', $includeRejected
@@ -152,7 +156,7 @@ class CertificateController extends Controller
         return back()->with('success', 'Certificado A1 validado e armazenado com segurança.');
     }
 
-    public function test(CompanyCertificate $certificate, CurrentCompanyContext $context): RedirectResponse
+    public function test(CompanyCertificate $certificate, CurrentCompanyContext $context, Request $request): RedirectResponse
     {
         $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
 
@@ -170,6 +174,8 @@ class CertificateController extends Controller
         if (! $certificate->agent_id || ! $certificate->thumbprint) {
             return back()->with('success', 'Certificado local sem agente ou thumbprint para teste.');
         }
+
+        $userId = $this->authenticatedUserId($request);
 
         $agent = Agent::query()
             ->where('id', $certificate->agent_id)
@@ -194,12 +200,14 @@ class CertificateController extends Controller
             'available_at' => now(),
             'max_attempts' => 1,
             'idempotency_key' => 'test-certificate:'.$certificate->id.':'.Str::uuid(),
+            'created_by' => $userId,
+            'created_by_user_id' => $userId,
         ]);
 
         return back()->with('success', 'Comando de teste do certificado enviado ao agente.');
     }
 
-    public function testAgentCertificate(AgentCertificate $certificate, CurrentCompanyContext $context): RedirectResponse
+    public function testAgentCertificate(AgentCertificate $certificate, CurrentCompanyContext $context, Request $request): RedirectResponse
     {
         $this->abortUnlessBelongsToCurrentCompany($certificate, $context);
 
@@ -210,6 +218,8 @@ class CertificateController extends Controller
         if (! $this->isUsableFiscalCandidate($certificate)) {
             return back()->with('error', 'Este certificado local não foi classificado como certificado fiscal ICP-Brasil utilizável.');
         }
+
+        $userId = $this->authenticatedUserId($request);
 
         $agent = Agent::query()
             ->where('id', $certificate->agent_id)
@@ -234,6 +244,8 @@ class CertificateController extends Controller
             'available_at' => now(),
             'max_attempts' => 1,
             'idempotency_key' => 'test-agent-certificate:'.$certificate->id.':'.Str::uuid(),
+            'created_by' => $userId,
+            'created_by_user_id' => $userId,
         ]);
 
         return back()->with('success', 'Comando de teste do certificado enviado ao agente.');
@@ -259,6 +271,7 @@ class CertificateController extends Controller
         }
 
         $company = $context->company();
+        $userId = $this->authenticatedUserId($request);
         $agent = Agent::query()
             ->where('id', $certificate->agent_id)
             ->where('tenant_id', $certificate->tenant_id)
@@ -274,6 +287,8 @@ class CertificateController extends Controller
             'environment' => $company->fiscal_environment->value,
             'uf' => $company->uf,
             'status' => 'pending',
+            'requested_by' => $userId,
+            'requested_by_user_id' => $userId,
             'requested_at' => now(),
         ]);
 
@@ -299,6 +314,8 @@ class CertificateController extends Controller
             'available_at' => now(),
             'max_attempts' => 1,
             'idempotency_key' => 'test-sefaz-connectivity:'.$test->id.':'.Str::uuid(),
+            'created_by' => $userId,
+            'created_by_user_id' => $userId,
         ]);
 
         $test->forceFill(['agent_command_id' => $command->id])->save();
@@ -319,6 +336,13 @@ class CertificateController extends Controller
             'current_user' => 'CurrentUser',
             'local_machine' => 'LocalMachine',
         ], $storeLocation);
+    }
+
+    private function authenticatedUserId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        return $user instanceof User ? $user->id : null;
     }
 
     private function isLinkableFiscalCandidate(AgentCertificate $certificate, ?string $companyCnpj): bool

@@ -52,6 +52,12 @@ class AgentCommand extends Model
         return $this->belongsTo(Agent::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
     /** @return HasMany<AgentCommandAttempt, $this> */
     public function attempts(): HasMany
     {

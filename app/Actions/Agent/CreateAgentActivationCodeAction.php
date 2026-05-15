@@ -20,6 +20,7 @@ class CreateAgentActivationCodeAction
             'tenant_id' => $company->tenant_id,
             'company_id' => $company->id,
             'requested_by' => $requestedBy,
+            'requested_by_user_id' => $requestedBy,
             'code_hash' => Hash::make($code),
             'status' => ActivationStatus::Pending,
             'expires_at' => now()->addMinutes((int) config('agent.activation_code_ttl_minutes', 30)),

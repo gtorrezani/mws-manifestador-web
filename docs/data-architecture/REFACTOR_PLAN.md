@@ -138,6 +138,51 @@ Gates:
 - `vendor/bin/phpunit --colors=always`
 - `composer quality`
 
+#### Implementation note - 2026-05-15
+
+Implemented as commit target `database: add standard user actor foreign keys`.
+
+New nullable columns:
+
+- `agent_activations.requested_by_user_id`
+- `agent_commands.created_by_user_id`
+- `recipient_manifestations.created_by_user_id`
+- `xml_downloads.requested_by_user_id`
+- `sefaz_connectivity_tests.requested_by_user_id`
+
+Legacy columns intentionally retained:
+
+- `agent_activations.requested_by`
+- `agent_commands.created_by`
+- `recipient_manifestations.created_by`
+- `xml_downloads.requested_by`
+- `sefaz_connectivity_tests.requested_by`
+- `audit_logs.actor_user_id`
+
+Backfill strategy:
+
+- new columns are backfilled from their matching legacy integer columns only when the legacy value exists in `users.id`;
+- orphan legacy values are not copied to the new FK columns;
+- no legacy data is deleted or overwritten.
+
+Foreign keys:
+
+- new standard actor columns receive nullable FKs to `users.id` with `nullOnDelete()`;
+- `audit_logs.actor_user_id` receives the same FK only when existing data has no orphan values;
+- if an environment contains orphan audit actor IDs, the migration skips that FK instead of forcing data loss.
+
+Code compatibility:
+
+- existing writes now dual-write legacy and standard actor columns where the application already knows the authenticated user ID;
+- Eloquent models expose typed `belongsTo(User::class, '..._user_id')` relationships for the standard columns;
+- no frontend contract was changed.
+
+Remaining risk:
+
+- legacy columns can still drift if a future write path updates only old columns or only new columns;
+- a later cleanup block should remove legacy columns only after production data has been verified and all writes use standard columns;
+- this block does not address tenant/company composite integrity, certificate naming, enum portability, or nullable-scope settings uniqueness.
+
 ### Block 2 - Settings scope uniqueness
 
 Goal: make `system_settings` uniqueness deterministic.

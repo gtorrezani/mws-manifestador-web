@@ -99,6 +99,7 @@ async function copyInstallCommand(): Promise<void> {
   <Head title="Empresa - Agentes" />
   <AppLayout title="Empresa" subtitle="Dados, certificados e agentes da empresa selecionada." show-subtitle>
     <CompanyTabs active="agents" />
+
     <section class="panel install-panel">
       <div class="install-header">
         <div>
@@ -158,7 +159,8 @@ async function copyInstallCommand(): Promise<void> {
             </li>
             <li><strong>Execute o instalador</strong><span>Abra o arquivo baixado no Windows.</span></li>
             <li>
-              <strong>Informe o codigo no instalador</strong><span>O assistente ativara o Agent junto a API.</span>
+              <strong>Informe o código no Configurador</strong
+              ><span>Abra pelo Menu Iniciar ou pelo ícone da bandeja.</span>
             </li>
             <li>
               <strong>Aguarde o status Online</strong
@@ -170,8 +172,10 @@ async function copyInstallCommand(): Promise<void> {
         <aside class="install-side">
           <h3>O que acontece no Windows</h3>
           <ul>
-            <li>O instalador abre o assistente local.</li>
-            <li>O assistente testa conexao com a API.</li>
+            <li>O MSI instala o Windows Service.</li>
+            <li>O Menu Iniciar ganha o MWS Agent Configurator.</li>
+            <li>O Tray Monitor mostra o ícone de bandeja.</li>
+            <li>O assistente testa conexão com a API.</li>
             <li>O Agent salva credenciais com DPAPI.</li>
             <li>O servico local envia heartbeat para a Web.</li>
           </ul>
@@ -184,8 +188,8 @@ async function copyInstallCommand(): Promise<void> {
       </div>
 
       <p class="muted">
-        Em producao, o instalador abrira o Assistente de Configuracao do MWS Agent para informar o codigo de ativacao,
-        testar a conexao e iniciar o servico.
+        Após instalar, abra o MWS Agent Configurator pelo Menu Iniciar ou pelo Tray Monitor para informar o código de
+        ativação, testar a conexão e iniciar/reiniciar o serviço.
       </p>
 
       <details class="advanced-install">

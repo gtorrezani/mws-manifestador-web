@@ -527,3 +527,51 @@ Included files:
 - Some existing Agent installation copy changes are still local and should be reviewed in the installer documentation/script round, not in navigation.
 - PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
 - Next recommended block: installer documentation/script and local operational copy, separated from seed/bootstrap changes.
+
+## Rodada 9
+
+Execution date: 2026-05-15 14:41:20 -03:00
+
+### Scope decision
+
+Created the Agent installer operations documentation/script/copy slice. The commit is limited to operational installation guidance, local publishing script safety, and copy on the Agents page that explains Configurator, Tray Monitor, and service startup. Bootstrap, seeders, auth tests, migrations, backend functional changes, HMAC/API, and certificate/SEFAZ behavior were left out.
+
+Included files:
+
+- `docs/agent-installation-and-operations.md`
+- `scripts/publish-local-agent-installer.ps1`
+- `resources/js/Pages/Agents/Index.vue`
+- `docs/QUALITY_BASELINE.md`
+
+### Documentation, script, and copy changes
+
+- Documented the local Agent installation surface: Configurator shortcut, Tray Monitor shortcut, logs shortcut, tray icon, service/admin permission expectations, and what the user should check when the Web does not show the Agent as Online.
+- Updated the installer copy on the Agents page to point users to the Configurator/Tray Monitor after installation instead of implying the browser or installer flow can complete local activation by itself.
+- Hardened `publish-local-agent-installer.ps1` with `SupportsShouldProcess`, a configurable installer version, explicit plain-file-name validation, `.msi`/`.exe` validation, and `.env` output based on the sanitized file name.
+- No installer binary, MSI/EXE/ZIP artifact, log, `.env`, certificate, PFX/P12, PEM, key, password, PIN, or fiscal XML was staged.
+
+### Commands executed
+
+| Command | Result |
+| --- | --- |
+| `git status -sb` | Confirmed branch `codex/quality-baseline-hmac-contract` and pending files; candidate files were docs/script/Agents copy only. |
+| `git diff --name-status` | Confirmed unrelated `bootstrap/app.php`, `database/seeders/DatabaseSeeder.php`, and `tests/Feature/Auth/AuthenticationTest.php` remained outside the commit. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -Command "[scriptblock]::Create((Get-Content -Raw scripts/publish-local-agent-installer.ps1)) \| Out-Null"` | Passed PowerShell parse validation. |
+| `Invoke-ScriptAnalyzer -Path scripts/publish-local-agent-installer.ps1` | Not run: PSScriptAnalyzer was not available in the local environment. |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-local-agent-installer.ps1 -InstallerPath <temp-msi> -WhatIf` | Passed as dry run; no real installer publication was executed. |
+| `npm.cmd run lint` | Passed. |
+| `npm.cmd run format:check` | Passed. |
+| `npm.cmd run typecheck` | Passed. |
+| `npm.cmd run build` | Passed. |
+| `npm.cmd run quality` | Passed. |
+| `composer pint-test` | Passed. |
+| `composer phpstan` | Passed. |
+| `vendor\bin\phpunit --colors=always` | Passed functionally: 90 tests, 501 assertions. PHPUnit reported 2 deprecations under local PHP 8.5.3. |
+| `composer quality` | Passed. |
+
+### Remaining risks and next blocks
+
+- Unstaged `bootstrap/app.php`, `database/seeders/DatabaseSeeder.php`, and `tests/Feature/Auth/AuthenticationTest.php` remain in the worktree.
+- Existing broader Portuguese copy in the Agent operations document still uses some unaccented ASCII text; this round corrected only the new/touched installer operations sections.
+- PHPUnit still reports 2 non-fatal deprecations under local PHP 8.5.3.
+- Next recommended block: decide whether the remaining bootstrap/seeder/auth-test changes are still needed, and split or discard them explicitly.

@@ -32,10 +32,4 @@ class ManifestationAttempt extends Model
     {
         return $this->belongsTo(RecipientManifestation::class, 'recipient_manifestation_id');
     }
-
-    /** @return BelongsTo<AgentCommand, $this> */
-    public function agentCommand(): BelongsTo
-    {
-        return $this->belongsTo(AgentCommand::class);
-    }
 }

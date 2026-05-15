@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Support\Cpf;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -18,7 +20,9 @@ use Illuminate\Support\Carbon;
  */
 class User extends Authenticatable
 {
+    /** @use HasFactory<UserFactory> */
     use HasFactory;
+
     use Notifiable;
 
     protected $fillable = [
@@ -50,5 +54,11 @@ class User extends Authenticatable
     public function canLogin(): bool
     {
         return $this->is_active && $this->blocked_at === null;
+    }
+
+    /** @return BelongsToMany<Company, $this> */
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class)->withTimestamps();
     }
 }

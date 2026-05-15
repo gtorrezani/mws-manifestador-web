@@ -18,13 +18,6 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'flash' => [
-                'success' => fn (): mixed => $request->session()->get('success'),
-                'warning' => fn (): mixed => $request->session()->get('warning'),
-                'error' => fn (): mixed => $request->session()->get('error'),
-                'info' => fn (): mixed => $request->session()->get('info'),
-                'activationCode' => fn (): mixed => $request->session()->get('activationCode'),
-            ],
             'currentCompany' => fn (): ?array => $this->context->hasCompany()
                 ? $this->serializeCompany($this->context->company())
                 : null,

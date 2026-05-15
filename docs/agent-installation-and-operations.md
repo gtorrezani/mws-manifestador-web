@@ -79,7 +79,7 @@ Alternativas suportadas ou recomendadas:
 
 Recomendacao:
 
-- Curto prazo: instalador WiX/MSI com Worker Service + Configurator WPF; scripts PowerShell ficam somente para suporte.
+- Curto prazo: instalador WiX/MSI com Worker Service, Configurator WPF e Tray Monitor; scripts PowerShell ficam somente para suporte.
 - Medio prazo: auto-update controlado, assinado e com rollback.
 - Futuro: Watchdog local separado para recuperar quedas do servico principal.
 
@@ -103,6 +103,17 @@ O MSI nao embute activation code. O Configurator usa o codigo uma vez, chama a A
 ## 6. Execucao como Windows Service
 
 Em producao, o Agent deve rodar como Windows Service com inicializacao automatica. Em desenvolvimento, console mode e mais simples para debugar ativacao, store de certificados e prompts de token A3.
+
+A instalação local deve deixar pontos visíveis para o usuário:
+
+- atalho `MWS Agent Configurator` no Menu Iniciar;
+- atalho `MWS Agent Tray Monitor` no Menu Iniciar;
+- atalho `MWS Agent Logs` para abrir a pasta de logs;
+- ícone de bandeja quando o Tray Monitor estiver em execução.
+
+O Tray Monitor roda no contexto do usuário logado e não substitui o Windows Service. Sair do Tray fecha apenas a camada visual. Ações de iniciar, parar ou reiniciar o serviço podem exigir permissão administrativa.
+
+Se a Web não mostrar Online após a instalação, o usuário deve abrir o Configurator ou o ícone de bandeja, confirmar API/ativação e verificar se o serviço `MWSManifestadorAgent` está rodando.
 
 Conta de servico:
 

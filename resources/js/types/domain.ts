@@ -25,6 +25,7 @@ export interface Company {
   trade_name?: string | null;
   cnpj: string;
   uf: string;
+  fiscal_environment: string;
   is_active: boolean;
 }
 

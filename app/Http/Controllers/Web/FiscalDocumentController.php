@@ -4,17 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Actions\FiscalDocument\CreateFiscalCommandAction;
 use App\Actions\FiscalDocument\RequestManifestationAction;
-use App\Enums\AgentStatus;
-use App\Enums\CertificateStatus;
-use App\Enums\CertificateType;
 use App\Enums\CommandType;
-use App\Enums\FiscalEnvironment;
 use App\Enums\ManifestationEventType;
 use App\Http\Controllers\Concerns\AuthorizesCurrentCompany;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FiscalDocument\BulkFiscalDocumentActionRequest;
 use App\Http\Requests\FiscalDocument\ManifestFiscalDocumentRequest;
-use App\Models\AgentCommand;
 use App\Models\Company;
 use App\Models\CompanyCertificate;
 use App\Models\FiscalDocument;
@@ -132,7 +127,7 @@ class FiscalDocumentController extends Controller
     ): RedirectResponse {
         $this->abortUnlessBelongsToCurrentCompany($document, $context);
 
-        $manifestation = $action->execute(
+        $action->execute(
             document: $document,
             eventType: ManifestationEventType::from((string) $request->validated('event_type')),
             justification: is_string($request->validated('justification')) ? $request->validated('justification') : null,
@@ -142,15 +137,7 @@ class FiscalDocumentController extends Controller
             createdBy: $this->authenticatedUserId($request),
         );
 
-        $command = $manifestation->attempts()->with('agentCommand')->latest('attempt_number')->first()?->agentCommand;
-
-        $manifestationDocument = $manifestation->fiscalDocument()->firstOrFail();
-
-        return back()->with($this->feedbackForCommand(
-            $command,
-            $this->requireCompany($manifestationDocument),
-            'Manifestacao registrada para envio a SEFAZ.',
-        ));
+        return back()->with('success', 'Comando de manifestacao criado.');
     }
 
     public function downloadXml(
@@ -162,19 +149,15 @@ class FiscalDocumentController extends Controller
         $this->abortUnlessBelongsToCurrentCompany($document, $context);
         $company = $this->requireCompany($document);
 
-        $command = $action->execute($company, CommandType::DownloadXmlByAccessKey, [
+        $action->execute($company, CommandType::DownloadXmlByAccessKey, [
             'access_key' => $document->access_key,
             'cnpj' => $document->recipient_cnpj,
             'uf' => $company->uf,
-            'environment' => FiscalEnvironment::Production->value,
+            'environment' => $company->fiscal_environment->value,
             'correlation_id' => (string) Str::uuid(),
         ], $document, $this->authenticatedUserId($request));
 
-        return back()->with($this->feedbackForCommand(
-            $command,
-            $company,
-            'Consulta do XML registrada para envio a SEFAZ.',
-        ));
+        return back()->with('success', 'Comando para baixar XML criado.');
     }
 
     public function bulk(
@@ -192,24 +175,15 @@ class FiscalDocumentController extends Controller
             ->whereIn('id', $documentIds)
             ->get();
 
-        $created = 0;
-        $warnings = [];
-
         foreach ($documents as $document) {
             if ($request->validated('action') === 'acknowledge') {
-                $manifestation = $requestManifestationAction->execute(
+                $requestManifestationAction->execute(
                     document: $document,
                     eventType: ManifestationEventType::OperationAcknowledgement,
                     justification: null,
                     context: new ManifestationRequestContext,
                     createdBy: $this->authenticatedUserId($request),
                 );
-                $command = $manifestation->attempts()->with('agentCommand')->latest('attempt_number')->first()?->agentCommand;
-                $warnings = [
-                    ...$warnings,
-                    ...$this->warningsForCommand($command, $this->requireCompany($document)),
-                ];
-                $created++;
 
                 continue;
             }
@@ -220,27 +194,16 @@ class FiscalDocumentController extends Controller
 
             $company = $this->requireCompany($document);
 
-            $command = $createFiscalCommandAction->execute($company, $type, [
+            $createFiscalCommandAction->execute($company, $type, [
                 'access_key' => $document->access_key,
                 'cnpj' => $document->recipient_cnpj,
                 'uf' => $company->uf,
-                'environment' => FiscalEnvironment::Production->value,
+                'environment' => $company->fiscal_environment->value,
                 'correlation_id' => (string) Str::uuid(),
             ], $document, $this->authenticatedUserId($request));
-            $warnings = [
-                ...$warnings,
-                ...$this->warningsForCommand($command, $company),
-            ];
-            $created++;
         }
 
-        $feedback = ['success' => "{$created} solicitacao(oes) registrada(s) para processamento."];
-
-        if ($warnings !== []) {
-            $feedback['warning'] = implode(' ', array_values(array_unique($warnings)));
-        }
-
-        return back()->with($feedback);
+        return back()->with('success', 'Comandos em lote criados.');
     }
 
     private function requireCompany(FiscalDocument $document): Company
@@ -268,58 +231,5 @@ class FiscalDocumentController extends Controller
             'LocalMachine', 'local_machine' => 'LocalMachine',
             default => null,
         };
-    }
-
-    /** @return array<string, string> */
-    private function feedbackForCommand(?AgentCommand $command, Company $company, string $success): array
-    {
-        $feedback = [
-            'success' => $success.' '.($command
-                ? "Status atual: {$command->status->value}. Acompanhe o retorno no Historico."
-                : 'Nao foi possivel localizar o comando vinculado.'),
-        ];
-
-        $warnings = $this->warningsForCommand($command, $company);
-
-        if ($warnings !== []) {
-            $feedback['warning'] = implode(' ', $warnings);
-        }
-
-        return $feedback;
-    }
-
-    /** @return list<string> */
-    private function warningsForCommand(?AgentCommand $command, Company $company): array
-    {
-        $warnings = [];
-        $certificate = $this->activeCertificateFor($company);
-
-        if (! $certificate) {
-            $warnings[] = 'Nao encontrei certificado ativo e valido para esta empresa; a SEFAZ pode rejeitar ou o processamento pode falhar.';
-        } elseif ($certificate->type === CertificateType::A1) {
-            $warnings[] = 'Certificado A1 ativo detectado. Nesta versao a acao ainda fica na fila do agente; a consulta web direta para A1 ainda precisa ser implementada.';
-        }
-
-        if (! $company->agents()->where('status', AgentStatus::Online->value)->exists()) {
-            $warnings[] = 'Nenhum agente online vinculado a empresa agora; a solicitacao ficara pendente ate um agente compativel processar a fila.';
-        }
-
-        if ($command && ! $command->wasRecentlyCreated) {
-            $warnings[] = 'Ja existia uma solicitacao igual para este documento, entao nao foi criada uma duplicata.';
-        }
-
-        return $warnings;
-    }
-
-    private function activeCertificateFor(Company $company): ?CompanyCertificate
-    {
-        return $company->certificates()
-            ->where('status', CertificateStatus::Active->value)
-            ->whereNull('revoked_at')
-            ->where(function ($query): void {
-                $query->whereNull('valid_until')->orWhere('valid_until', '>=', now());
-            })
-            ->latest('valid_until')
-            ->first();
     }
 }

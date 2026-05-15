@@ -18,6 +18,7 @@ use App\Models\CompanyFiscalState;
 use App\Models\FiscalDocument;
 use App\Models\SefazRequest;
 use App\Models\SystemSetting;
+use App\Models\User;
 use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -508,6 +509,11 @@ class OperationalCompanyIsolationTest extends TestCase
 
     private function withCurrentCompany(Company $company): self
     {
-        return $this->withSession([CurrentCompanyContext::SESSION_KEY => $company->id]);
+        $user = User::factory()->create();
+        $user->companies()->attach($company->id);
+
+        return $this
+            ->actingAs($user)
+            ->withSession([CurrentCompanyContext::SESSION_KEY => $company->id]);
     }
 }

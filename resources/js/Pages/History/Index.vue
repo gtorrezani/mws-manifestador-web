@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/Components/Layout/AppLayout.vue';
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import type { AgentCommand, Paginated } from '@/types/models';
@@ -15,11 +16,9 @@ defineProps<{
     created_at: string | null;
     responses?: Array<{
       id: number;
-      status: string | null;
-      http_status_code: number | null;
-      sefaz_status_code: string | null;
-      sefaz_message: string | null;
-      received_at: string | null;
+      status_code: string | null;
+      reason: string | null;
+      protocol_number: string | null;
     }>;
   }>;
 }>();
@@ -36,6 +35,8 @@ const technicalMessage = (code: string | null, message: string | null): string =
 <template>
   <Head title="Histórico" />
   <AppLayout title="Histórico">
+    <CompanyTabs active="history" />
+
     <section class="panel">
       <div class="section-title">
         <h2>Comandos</h2>
@@ -91,7 +92,7 @@ const technicalMessage = (code: string | null, message: string | null): string =
               <th>Correlação</th>
               <th>Status SEFAZ</th>
               <th>Mensagem</th>
-              <th>HTTP</th>
+              <th>Protocolo</th>
               <th>Data/hora</th>
             </tr>
           </thead>
@@ -99,9 +100,9 @@ const technicalMessage = (code: string | null, message: string | null): string =
             <tr v-for="request in sefazRequests" :key="request.id">
               <td class="mono">{{ request.service }}</td>
               <td class="mono">{{ request.correlation_id ?? '-' }}</td>
-              <td>{{ request.responses?.[0]?.sefaz_status_code ?? request.responses?.[0]?.status ?? '-' }}</td>
-              <td>{{ request.responses?.[0]?.sefaz_message ?? '-' }}</td>
-              <td class="mono">{{ request.responses?.[0]?.http_status_code ?? '-' }}</td>
+              <td>{{ request.responses?.[0]?.status_code ?? request.status ?? '-' }}</td>
+              <td>{{ request.responses?.[0]?.reason ?? '-' }}</td>
+              <td class="mono">{{ request.responses?.[0]?.protocol_number ?? '-' }}</td>
               <td>{{ request.created_at ?? '-' }}</td>
             </tr>
             <tr v-if="sefazRequests.length === 0">

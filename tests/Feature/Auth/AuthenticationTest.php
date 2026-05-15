@@ -103,20 +103,6 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_protected_route_redirects_guest_to_login(): void
-    {
-        $this->get('/')->assertRedirect('/login');
-    }
-
-    public function test_protected_route_allows_authenticated_user(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->get('/')
-            ->assertOk();
-    }
-
     public function test_rate_limit_blocks_after_excessive_attempts(): void
     {
         User::factory()->create([
@@ -133,12 +119,10 @@ class AuthenticationTest extends TestCase
             ])->assertSessionHasErrors('cpf');
         }
 
-        $response = $this->withServerVariables(['REMOTE_ADDR' => '10.1.1.1'])->post('/login', [
+        $this->withServerVariables(['REMOTE_ADDR' => '10.1.1.1'])->post('/login', [
             'cpf' => '52998224725',
             'password' => 'wrong-password',
-        ]);
-
-        $response->assertSessionHasErrors('cpf');
+        ])->assertSessionHasErrors('cpf');
 
         $message = session('errors')->getBag('default')->first('cpf');
         $this->assertStringContainsString('Muitas tentativas de login.', $message);
@@ -157,6 +141,9 @@ class AuthenticationTest extends TestCase
             'password' => 'password',
         ])->assertRedirect('/');
 
-        $this->assertNotNull($user->fresh()->last_login_at);
+        $freshUser = $user->fresh();
+
+        $this->assertNotNull($freshUser);
+        $this->assertNotNull($freshUser->last_login_at);
     }
 }

@@ -3,8 +3,10 @@
 namespace App\Support\CompanyContext;
 
 use App\Models\Company;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Session\Store;
+use Illuminate\Support\Facades\Auth;
 
 class CurrentCompanyContext
 {
@@ -66,11 +68,28 @@ class CurrentCompanyContext
             return $this->availableCompanies;
         }
 
-        // TODO auth/rbac: restrict available companies by authenticated user and tenant membership.
-        $this->availableCompanies = Company::query()
-            ->where('is_active', true)
-            ->orderBy('legal_name')
-            ->get(['id', 'uuid', 'tenant_id', 'legal_name', 'trade_name', 'cnpj', 'uf', 'fiscal_environment', 'is_active']);
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            $this->availableCompanies = new EloquentCollection;
+
+            return $this->availableCompanies;
+        }
+
+        $this->availableCompanies = $user->companies()
+            ->where('companies.is_active', true)
+            ->orderBy('companies.legal_name')
+            ->get([
+                'companies.id',
+                'companies.uuid',
+                'companies.tenant_id',
+                'companies.legal_name',
+                'companies.trade_name',
+                'companies.cnpj',
+                'companies.uf',
+                'companies.fiscal_environment',
+                'companies.is_active',
+            ]);
 
         return $this->availableCompanies;
     }
@@ -81,7 +100,10 @@ class CurrentCompanyContext
             throw new CompanyContextException('The selected company is inactive.');
         }
 
-        // TODO auth/rbac: verify the authenticated user may operate this company.
+        if (! $this->availableCompanies()->contains('id', $company->id)) {
+            throw new CompanyContextException('The authenticated user cannot access the selected company.');
+        }
+
         $this->company = $company;
         $this->session->put(self::SESSION_KEY, $company->id);
     }

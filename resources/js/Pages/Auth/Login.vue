@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import FormField from '@/Components/FormField.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
-
-import FormField from '@/Components/FormField.vue';
 
 const form = useForm({
   cpf: '',
@@ -71,12 +70,7 @@ function submit(): void {
         </FormField>
 
         <FormField label="Senha" :error="form.errors.password" required>
-          <input
-            v-model="form.password"
-            class="input"
-            autocomplete="current-password"
-            type="password"
-          />
+          <input v-model="form.password" class="input" autocomplete="current-password" type="password" />
         </FormField>
 
         <label class="remember">

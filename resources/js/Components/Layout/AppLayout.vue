@@ -17,31 +17,18 @@ const flash = computed(() => {
   return page.props.flash as
     | {
         success?: string;
-        warning?: string;
         error?: string;
-        info?: string;
         activationCode?: string | { code: string; expires_at?: string | null };
       }
     | undefined;
 });
 
 const navItems = [
-  { label: 'Dashboard', href: '/' },
-  { label: 'Empresas', href: '/companies' },
-  { label: 'Agentes', href: '/agents' },
-  { label: 'Certificados', href: '/certificates' },
-  { label: 'Documentos Fiscais', href: '/fiscal-documents' },
-  { label: 'Historico', href: '/history' },
-  { label: 'Configuracoes', href: '/settings' },
+  { label: 'Dashboard', href: '/', activePrefixes: ['/'] },
+  { label: 'Empresa', href: '/settings', activePrefixes: ['/settings', '/agents', '/certificates'] },
+  { label: 'Documentos Fiscais', href: '/fiscal-documents', activePrefixes: ['/fiscal-documents'] },
+  { label: 'Histórico', href: '/history', activePrefixes: ['/history'] },
 ];
-
-const environmentLabel = computed(() => {
-  if (!currentCompany.value) {
-    return 'Sem empresa ativa';
-  }
-
-  return currentCompany.value.fiscal_environment === 'production' ? 'Producao' : 'Homologacao';
-});
 
 watch(
   currentCompany,
@@ -66,12 +53,16 @@ function switchCompany(): void {
   );
 }
 
-function formatCnpj(value: string): string {
-  return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-}
-
 function logout(): void {
   router.post('/logout');
+}
+
+function isActiveNavItem(item: (typeof navItems)[number]): boolean {
+  if (item.href === '/') {
+    return page.url === '/';
+  }
+
+  return item.activePrefixes.some((prefix) => page.url === prefix || page.url.startsWith(`${prefix}/`));
 }
 </script>
 
@@ -89,7 +80,7 @@ function logout(): void {
           :key="item.href"
           :href="item.href"
           class="nav-link"
-          :class="{ active: page.url === item.href || (item.href !== '/' && page.url.startsWith(item.href)) }"
+          :class="{ active: isActiveNavItem(item) }"
         >
           {{ item.label }}
         </Link>
@@ -102,15 +93,7 @@ function logout(): void {
           <h1>{{ props.title }}</h1>
           <p v-if="props.showSubtitle && props.subtitle">{{ props.subtitle }}</p>
         </div>
-        <div class="topbar-actions">
-          <slot v-if="$slots.actions" name="actions" />
-          <button class="button danger" type="button" @click="logout">Sair</button>
-        </div>
         <div class="company-switcher">
-          <div v-if="currentCompany" class="company-summary">
-            <strong>{{ currentCompany.trade_name || currentCompany.legal_name }}</strong>
-            <span>{{ formatCnpj(currentCompany.cnpj) }} - {{ currentCompany.uf }}</span>
-          </div>
           <select
             v-if="availableCompanies.length > 0"
             v-model="selectedCompanyId"
@@ -121,21 +104,20 @@ function logout(): void {
               {{ company.legal_name }}
             </option>
           </select>
-          <div class="environment-pill">{{ environmentLabel }}</div>
+          <slot name="actions" />
+          <button class="button danger" type="button" @click="logout">Sair</button>
         </div>
       </header>
 
-      <div v-if="flash?.success" class="flash success">{{ flash.success }}</div>
-      <div v-if="flash?.warning" class="flash warning">{{ flash.warning }}</div>
-      <div v-if="flash?.error" class="flash danger">{{ flash.error }}</div>
-      <div v-if="flash?.info" class="flash info">{{ flash.info }}</div>
+      <div v-if="flash?.success" class="flash">{{ flash.success }}</div>
+      <div v-if="flash?.error" class="flash error">{{ flash.error }}</div>
       <div v-if="flash?.activationCode" class="flash">
-        Codigo de ativacao gerado:
+        Código de ativação gerado:
         <strong class="mono">
           {{ typeof flash.activationCode === 'string' ? flash.activationCode : flash.activationCode.code }}
         </strong>
         <span v-if="typeof flash.activationCode !== 'string' && flash.activationCode.expires_at">
-          , valido ate {{ flash.activationCode.expires_at }}
+          , válido até {{ flash.activationCode.expires_at }}
         </span>
       </div>
 
@@ -149,6 +131,12 @@ function logout(): void {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+.flash.error {
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: #b42318;
 }
 
 .sidebar {
@@ -216,36 +204,12 @@ nav {
   margin: 5px 0 0;
 }
 
-.topbar-actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .company-switcher {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
-}
-
-.company-summary {
-  display: grid;
-  gap: 2px;
-  text-align: right;
-}
-
-.company-summary strong {
-  color: var(--text);
-  font-size: 13px;
-}
-
-.company-summary span {
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .company-select {
@@ -255,16 +219,6 @@ nav {
   color: var(--text);
   min-width: 260px;
   padding: 8px 10px;
-}
-
-.environment-pill {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 999px;
-  color: #9a3412;
-  font-size: 12px;
-  font-weight: 750;
-  padding: 7px 10px;
 }
 
 @media (max-width: 900px) {
@@ -290,7 +244,6 @@ nav {
     flex-direction: column;
   }
 
-  .topbar-actions,
   .company-switcher {
     justify-content: flex-start;
     width: 100%;

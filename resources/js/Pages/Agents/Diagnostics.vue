@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import type { Agent, Paginated } from '@/types/models';
@@ -12,7 +13,9 @@ defineProps<{
 
 <template>
   <Head title="Diagnóstico do agente" />
-  <AppLayout :title="`Diagnóstico - ${agent.name}`">
+  <AppLayout title="Empresa" :subtitle="`Diagnóstico - ${agent.name}`" show-subtitle>
+    <CompanyTabs active="agents" />
+
     <Link class="button" href="/agents">Voltar</Link>
 
     <section class="panel diagnostics">

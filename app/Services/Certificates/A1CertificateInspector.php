@@ -8,6 +8,23 @@ use Illuminate\Validation\ValidationException;
 
 class A1CertificateInspector
 {
+    /** @var list<string> */
+    private const ICP_BRASIL_KEYWORDS = [
+        'ICP-Brasil',
+        'AC SOLUTI',
+        'Receita Federal',
+        'RFB',
+        'Serasa',
+        'Certisign',
+        'Valid',
+        'Safeweb',
+        'SERPRO',
+        'Fenacon',
+        'DigitalSign',
+        'PRODEMGE',
+        'Autoridade Certificadora',
+    ];
+
     /**
      * @return array{
      *     pfx_contents: string,
@@ -65,6 +82,10 @@ class A1CertificateInspector
             ]);
         }
 
+        $cnpj = $this->extractCnpj($parsed, $certificatePem);
+        $validUntil = $this->timestamp($parsed['validTo_time_t'] ?? null);
+        $this->assertFiscalCertificate($parsed, $certificatePem, $cnpj, $validUntil);
+
         return [
             'pfx_contents' => $contents,
             'certificate_pem' => $certificatePem,
@@ -74,10 +95,48 @@ class A1CertificateInspector
                 ? $parsed['serialNumberHex']
                 : null,
             'thumbprint' => strtoupper(str_replace(':', '', $thumbprint)),
-            'cnpj' => $this->extractCnpj($parsed, $certificatePem),
+            'cnpj' => $cnpj,
             'valid_from' => $this->timestamp($parsed['validFrom_time_t'] ?? null),
-            'valid_until' => $this->timestamp($parsed['validTo_time_t'] ?? null),
+            'valid_until' => $validUntil,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $parsed
+     */
+    private function assertFiscalCertificate(array $parsed, string $certificatePem, ?string $cnpj, ?Carbon $validUntil): void
+    {
+        $text = json_encode($parsed, JSON_THROW_ON_ERROR).' '.$certificatePem;
+
+        if ($validUntil !== null && $validUntil->isPast()) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'Certificado vencido.',
+            ]);
+        }
+
+        if ($cnpj === null) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'CPF/CNPJ não identificado no certificado.',
+            ]);
+        }
+
+        if (! $this->containsIcpBrasilSignal($text)) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'Emissor/cadeia não indica certificado fiscal ICP-Brasil.',
+            ]);
+        }
+
+        if ($this->isCertificateAuthority($parsed)) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'Certificado de autoridade certificadora não pode ser vinculado à empresa.',
+            ]);
+        }
+
+        if (! $this->hasCompatibleUsage($parsed)) {
+            throw ValidationException::withMessages([
+                'certificate_file' => 'Uso do certificado não é compatível com autenticação/assinatura de cliente.',
+            ]);
+        }
     }
 
     /**
@@ -98,6 +157,62 @@ class A1CertificateInspector
         }
 
         return Carbon::createFromTimestamp($value);
+    }
+
+    private function containsIcpBrasilSignal(string $text): bool
+    {
+        foreach (self::ICP_BRASIL_KEYWORDS as $keyword) {
+            if (str_contains(strtolower($text), strtolower($keyword))) {
+                return true;
+            }
+        }
+
+        return str_contains($text, '2.16.76.1.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $parsed
+     */
+    private function isCertificateAuthority(array $parsed): bool
+    {
+        $basicConstraints = $this->extension($parsed, 'basicConstraints');
+
+        return is_string($basicConstraints) && str_contains(strtoupper($basicConstraints), 'CA:TRUE');
+    }
+
+    /**
+     * @param  array<string, mixed>  $parsed
+     */
+    private function hasCompatibleUsage(array $parsed): bool
+    {
+        $extendedKeyUsage = $this->extension($parsed, 'extendedKeyUsage');
+        if (is_string($extendedKeyUsage) && $extendedKeyUsage !== '') {
+            $normalized = strtolower($extendedKeyUsage);
+            if (! str_contains($normalized, 'client') && ! str_contains($normalized, 'autentica')) {
+                return false;
+            }
+        }
+
+        $keyUsage = $this->extension($parsed, 'keyUsage');
+        if (is_string($keyUsage) && $keyUsage !== '') {
+            $normalized = strtolower($keyUsage);
+
+            return str_contains($normalized, 'digital signature') ||
+                str_contains($normalized, 'non repudiation') ||
+                str_contains($normalized, 'content commitment');
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $parsed
+     */
+    private function extension(array $parsed, string $name): mixed
+    {
+        $extensions = $parsed['extensions'] ?? null;
+
+        return is_array($extensions) ? ($extensions[$name] ?? null) : null;
     }
 
     private function name(mixed $name): ?string

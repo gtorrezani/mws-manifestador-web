@@ -12,7 +12,6 @@ use App\Models\FiscalDocumentSummary;
 use App\Models\FiscalDocumentXml;
 use App\Services\Sefaz\DistributionStateService;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class RecordFiscalDocumentSyncResultAction
@@ -91,8 +90,9 @@ class RecordFiscalDocumentSyncResultAction
         $summary->fill([
             'tenant_id' => $command->tenant_id,
             'company_id' => $command->company_id,
-            'storage_disk' => $summaryXml === null ? null : $this->xmlDisk(),
-            'storage_path' => $summaryXml === null ? null : $this->storeXml($command, $accessKey, 'summary', $summaryXml),
+            'storage_disk' => $summaryXml === null ? null : 'database',
+            'storage_path' => $summaryXml === null ? null : 'fiscal_document_summaries.summary_xml',
+            'summary_xml' => $summaryXml,
             'content_hash' => $summaryXml === null ? $this->string($payload, 'content_hash') : hash('sha256', $summaryXml),
             'summary_payload' => $this->summaryPayload($payload),
             'received_at' => now(),
@@ -110,8 +110,9 @@ class RecordFiscalDocumentSyncResultAction
                 ],
                 [
                     'uuid' => (string) Str::uuid(),
-                    'storage_disk' => $this->xmlDisk(),
-                    'storage_path' => $this->storeXml($command, $accessKey, 'full', $fullXml),
+                    'storage_disk' => 'database',
+                    'storage_path' => 'fiscal_document_xmls.xml_content',
+                    'xml_content' => $fullXml,
                     'size_bytes' => strlen($fullXml),
                     'schema_version' => $this->schema($payload),
                     'source' => 'distribution',
@@ -136,28 +137,6 @@ class RecordFiscalDocumentSyncResultAction
         $schema = $this->string($payload, 'schema');
 
         return $schema === null ? null : Str::limit($schema, 20, '');
-    }
-
-    private function xmlDisk(): string
-    {
-        $disk = config('filesystems.default', 'local');
-
-        return is_string($disk) ? $disk : 'local';
-    }
-
-    private function storeXml(AgentCommand $command, string $accessKey, string $kind, string $xml): string
-    {
-        $path = sprintf(
-            'fiscal-documents/%d/%s/%s-%s.xml',
-            $command->company_id,
-            $accessKey,
-            $kind,
-            hash('sha256', $xml),
-        );
-
-        Storage::disk($this->xmlDisk())->put($path, $xml);
-
-        return $path;
     }
 
     private function companyCnpj(AgentCommand $command): ?string

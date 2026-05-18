@@ -2,6 +2,7 @@
 
 namespace App\Services\Certificates;
 
+use App\Support\Cnpj;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -106,7 +107,7 @@ class A1CertificateInspector
      */
     private function assertFiscalCertificate(array $parsed, string $certificatePem, ?string $cnpj, ?Carbon $validUntil): void
     {
-        $text = json_encode($parsed, JSON_THROW_ON_ERROR).' '.$certificatePem;
+        $text = json_encode($parsed, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).' '.$certificatePem;
 
         if ($validUntil !== null && $validUntil->isPast()) {
             throw ValidationException::withMessages([
@@ -144,10 +145,17 @@ class A1CertificateInspector
      */
     private function extractCnpj(array $parsed, string $certificatePem): ?string
     {
-        $text = json_encode($parsed, JSON_THROW_ON_ERROR).' '.$certificatePem;
-        preg_match('/(?<!\d)\d{14}(?!\d)/', $text, $matches);
+        $text = json_encode($parsed, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).' '.$certificatePem;
+        preg_match_all('/(?<!\d)(?:\d{14}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})(?!\d)/', $text, $matches);
 
-        return isset($matches[0]) ? $matches[0] : null;
+        foreach ($matches[0] as $candidate) {
+            $cnpj = Cnpj::normalize($candidate);
+            if (strlen($cnpj) === 14) {
+                return $cnpj;
+            }
+        }
+
+        return null;
     }
 
     private function timestamp(mixed $value): ?Carbon

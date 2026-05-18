@@ -22,11 +22,22 @@ export interface Company {
   legal_name: string;
   trade_name: string | null;
   cnpj: string;
+  state_registration?: string | null;
   uf: string;
   fiscal_environment: string;
   is_active: boolean;
   agent?: Agent | null;
   agents?: Agent[];
+}
+
+export interface User {
+  id: number;
+  name: string;
+  cpf: string;
+  is_active: boolean;
+  blocked_at: string | null;
+  last_login_at: string | null;
+  companies?: Array<Pick<Company, 'id'>>;
 }
 
 export interface Agent {

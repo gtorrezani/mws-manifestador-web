@@ -32,42 +32,13 @@ class RecordManifestationResultAction
             return;
         }
 
-        $document = $manifestation->fiscalDocument()->lockForUpdate()->first();
-        if (! $document instanceof FiscalDocument) {
-            return;
-        }
-
         $attempt = $this->attemptFor($manifestation, $command);
-        $previousStatus = $attempt?->previous_manifestation_status ?? $document->manifestation_status;
-        $eventType = $manifestation->event_type;
-        $accepted = in_array((string) $data->sefazStatusCode, self::ACCEPTED_SEFAZ_STATUS_CODES, true);
+        $this->recordCompletedManifestation($manifestation, $attempt, $data);
+    }
 
-        $newDocumentStatus = $accepted
-            ? $this->transitionGuard->acceptedStatusFor($eventType)
-            : $this->transitionGuard->statusAfterRejection($previousStatus);
-
-        $manifestation->forceFill([
-            'status' => $accepted ? ManifestationRecordStatus::Accepted : ManifestationRecordStatus::Rejected,
-            'protocol_number' => $data->protocolNumber,
-            'sefaz_status_code' => $data->sefazStatusCode,
-            'sefaz_message' => $data->sefazMessage,
-            'occurred_at' => now(),
-        ])->save();
-
-        $attempt?->forceFill([
-            'status' => $accepted ? ManifestationRecordStatus::Accepted : ManifestationRecordStatus::Rejected,
-            'new_manifestation_status' => $newDocumentStatus,
-            'protocol_number' => $data->protocolNumber,
-            'sefaz_status_code' => $data->sefazStatusCode,
-            'sefaz_message' => $data->sefazMessage,
-            'finished_at' => now(),
-        ])->save();
-
-        $document->forceFill([
-            'manifestation_status' => $newDocumentStatus,
-            'last_sefaz_status_code' => $data->sefazStatusCode,
-            'last_sefaz_message' => $data->sefazMessage,
-        ])->save();
+    public function recordDirectCompleted(RecipientManifestation $manifestation, ManifestationAttempt $attempt, CommandResultData $data): void
+    {
+        $this->recordCompletedManifestation($manifestation, $attempt, $data);
     }
 
     public function recordFailed(AgentCommand $command, CommandFailureData $data, bool $isFinalFailure): void
@@ -81,41 +52,17 @@ class RecordManifestationResultAction
             return;
         }
 
-        $document = $manifestation->fiscalDocument()->lockForUpdate()->first();
-        if (! $document instanceof FiscalDocument) {
-            return;
-        }
-
         $attempt = $this->attemptFor($manifestation, $command);
-        $previousStatus = $attempt?->previous_manifestation_status ?? $document->manifestation_status;
-        $newDocumentStatus = $this->transitionGuard->statusAfterTechnicalFailure($previousStatus);
+        $this->recordFailedManifestation($manifestation, $attempt, $data, $isFinalFailure);
+    }
 
-        $attempt?->forceFill([
-            'status' => ManifestationRecordStatus::Failed,
-            'sefaz_status_code' => $data->sefazStatusCode,
-            'sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
-            'finished_at' => now(),
-        ])->save();
-
-        if (! $isFinalFailure) {
-            return;
-        }
-
-        $manifestation->forceFill([
-            'status' => ManifestationRecordStatus::Failed,
-            'sefaz_status_code' => $data->sefazStatusCode,
-            'sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
-        ])->save();
-
-        $attempt?->forceFill([
-            'new_manifestation_status' => $newDocumentStatus,
-        ])->save();
-
-        $document->forceFill([
-            'manifestation_status' => $newDocumentStatus,
-            'last_sefaz_status_code' => $data->sefazStatusCode,
-            'last_sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
-        ])->save();
+    public function recordDirectFailed(
+        RecipientManifestation $manifestation,
+        ManifestationAttempt $attempt,
+        CommandFailureData $data,
+        bool $isFinalFailure,
+    ): void {
+        $this->recordFailedManifestation($manifestation, $attempt, $data, $isFinalFailure);
     }
 
     private function findManifestation(AgentCommand $command): ?RecipientManifestation
@@ -157,5 +104,89 @@ class RecordManifestationResultAction
             CommandType::ManifestNotPerformed => ManifestationEventType::OperationNotPerformed,
             default => null,
         };
+    }
+
+    private function recordCompletedManifestation(
+        RecipientManifestation $manifestation,
+        ?ManifestationAttempt $attempt,
+        CommandResultData $data,
+    ): void {
+        $document = $manifestation->fiscalDocument()->lockForUpdate()->first();
+        if (! $document instanceof FiscalDocument) {
+            return;
+        }
+
+        $previousStatus = $attempt?->previous_manifestation_status ?? $document->manifestation_status;
+        $eventType = $manifestation->event_type;
+        $accepted = in_array((string) $data->sefazStatusCode, self::ACCEPTED_SEFAZ_STATUS_CODES, true);
+
+        $newDocumentStatus = $accepted
+            ? $this->transitionGuard->acceptedStatusFor($eventType)
+            : $this->transitionGuard->statusAfterRejection($previousStatus);
+
+        $manifestation->forceFill([
+            'status' => $accepted ? ManifestationRecordStatus::Accepted : ManifestationRecordStatus::Rejected,
+            'protocol_number' => $data->protocolNumber,
+            'sefaz_status_code' => $data->sefazStatusCode,
+            'sefaz_message' => $data->sefazMessage,
+            'occurred_at' => now(),
+        ])->save();
+
+        $attempt?->forceFill([
+            'status' => $accepted ? ManifestationRecordStatus::Accepted : ManifestationRecordStatus::Rejected,
+            'new_manifestation_status' => $newDocumentStatus,
+            'protocol_number' => $data->protocolNumber,
+            'sefaz_status_code' => $data->sefazStatusCode,
+            'sefaz_message' => $data->sefazMessage,
+            'finished_at' => now(),
+        ])->save();
+
+        $document->forceFill([
+            'manifestation_status' => $newDocumentStatus,
+            'last_sefaz_status_code' => $data->sefazStatusCode,
+            'last_sefaz_message' => $data->sefazMessage,
+        ])->save();
+    }
+
+    private function recordFailedManifestation(
+        RecipientManifestation $manifestation,
+        ?ManifestationAttempt $attempt,
+        CommandFailureData $data,
+        bool $isFinalFailure,
+    ): void {
+        $document = $manifestation->fiscalDocument()->lockForUpdate()->first();
+        if (! $document instanceof FiscalDocument) {
+            return;
+        }
+
+        $previousStatus = $attempt?->previous_manifestation_status ?? $document->manifestation_status;
+        $newDocumentStatus = $this->transitionGuard->statusAfterTechnicalFailure($previousStatus);
+
+        $attempt?->forceFill([
+            'status' => ManifestationRecordStatus::Failed,
+            'sefaz_status_code' => $data->sefazStatusCode,
+            'sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
+            'finished_at' => now(),
+        ])->save();
+
+        if (! $isFinalFailure) {
+            return;
+        }
+
+        $manifestation->forceFill([
+            'status' => ManifestationRecordStatus::Failed,
+            'sefaz_status_code' => $data->sefazStatusCode,
+            'sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
+        ])->save();
+
+        $attempt?->forceFill([
+            'new_manifestation_status' => $newDocumentStatus,
+        ])->save();
+
+        $document->forceFill([
+            'manifestation_status' => $newDocumentStatus,
+            'last_sefaz_status_code' => $data->sefazStatusCode,
+            'last_sefaz_message' => $data->sefazMessage ?: $data->errorMessage,
+        ])->save();
     }
 }

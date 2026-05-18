@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('current-company', [CurrentCompanyController::class, 'update'])->name('current-company.update');
 
     Route::resource('companies', CompanyController::class)->only(['index', 'store', 'update']);
+    Route::post('companies/{company}/users', [CompanyController::class, 'storeUser'])->name('companies.users.store');
 
     Route::middleware('company.selected')->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');

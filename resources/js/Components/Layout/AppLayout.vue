@@ -25,7 +25,7 @@ const flash = computed(() => {
 
 const navItems = [
   { label: 'Dashboard', href: '/', activePrefixes: ['/'] },
-  { label: 'Empresa', href: '/settings', activePrefixes: ['/settings', '/agents', '/certificates'] },
+  { label: 'Empresa', href: '/companies', activePrefixes: ['/companies', '/settings', '/agents', '/certificates'] },
   { label: 'Documentos Fiscais', href: '/fiscal-documents', activePrefixes: ['/fiscal-documents'] },
   { label: 'Histórico', href: '/history', activePrefixes: ['/history'] },
 ];

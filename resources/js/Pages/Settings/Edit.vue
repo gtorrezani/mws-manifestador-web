@@ -2,10 +2,12 @@
 import FormField from '@/Components/FormField.vue';
 import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
+import type { CompanyFiscalState } from '@/types/models';
 import { Head, useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
   settings: Record<string, { value?: unknown } | undefined>;
+  fiscalState: CompanyFiscalState;
 }>();
 
 type AutomationRules = {
@@ -14,13 +16,22 @@ type AutomationRules = {
   notify_failed_manifestations?: boolean;
 };
 
-const automationRules = (props.settings.automation_rules?.value ?? {}) as AutomationRules;
+function settingValue<T>(key: string, fallback: T): T {
+  const raw = props.settings[key]?.value;
+
+  if (raw !== null && typeof raw === 'object' && 'value' in raw) {
+    return (raw as { value: T }).value;
+  }
+
+  return (raw ?? fallback) as T;
+}
+
+const automationRules = settingValue<AutomationRules>('automation_rules', {});
 
 const form = useForm({
-  default_fiscal_environment: props.settings.default_fiscal_environment?.value ?? 'production',
-  xml_storage_disk: props.settings.xml_storage_disk?.value ?? 's3',
-  xml_retention_days: props.settings.xml_retention_days?.value ?? 1825,
-  sync_frequency_minutes: props.settings.sync_frequency_minutes?.value ?? 60,
+  last_nsu: props.fiscalState.last_nsu,
+  retention_days: settingValue('retention_days', 1825),
+  sync_frequency_minutes: settingValue('sync_frequency_minutes', 60),
   automation_rules: automationRules,
 });
 
@@ -39,22 +50,12 @@ function submit(): void {
         <h2>Configurações fiscais</h2>
       </div>
       <div class="grid cols-2">
-        <FormField label="Ambiente fiscal padrão" :error="form.errors.default_fiscal_environment" required>
-          <select v-model="form.default_fiscal_environment" class="select">
-            <option value="production">Produção</option>
-            <option value="homologation">Homologação</option>
-          </select>
+        <FormField label="Último NSU" :error="form.errors.last_nsu" required>
+          <input v-model="form.last_nsu" class="input mono" inputmode="numeric" maxlength="15" />
         </FormField>
 
-        <FormField label="Storage XML" :error="form.errors.xml_storage_disk" required>
-          <select v-model="form.xml_storage_disk" class="select">
-            <option value="local">Filesystem local</option>
-            <option value="s3">S3-compatible</option>
-          </select>
-        </FormField>
-
-        <FormField label="Política de retenção em dias" :error="form.errors.xml_retention_days" required>
-          <input v-model="form.xml_retention_days" class="input" min="30" type="number" />
+        <FormField label="Política de retenção em dias" :error="form.errors.retention_days" required>
+          <input v-model="form.retention_days" class="input" min="30" type="number" />
         </FormField>
 
         <FormField label="Frequência de consulta em minutos" :error="form.errors.sync_frequency_minutes" required>
@@ -86,10 +87,6 @@ function submit(): void {
 </template>
 
 <style scoped>
-.settings-form {
-  max-width: 940px;
-}
-
 .automation {
   border-top: 1px solid var(--border);
   margin-top: 18px;

@@ -19,7 +19,7 @@
       "issued_at": "2026-05-14T13:15:00Z",
       "total_amount": "123.45",
       "summary_xml": "<resNFe xmlns=\"http://www.portalfiscal.inf.br/nfe\"><chNFe>35260512345678000195550010000000011000000010</chNFe><CNPJ>12345678000195</CNPJ><xNome>Emitente Homologacao</xNome><dhEmi>2026-05-14T10:15:00-03:00</dhEmi><vNF>123.45</vNF><cSitNFe>1</cSitNFe></resNFe>",
-      "full_xml": null,
+      "full_xml": "<nfeProc xmlns=\"http://www.portalfiscal.inf.br/nfe\"><NFe><infNFe Id=\"NFe35260512345678000195550010000000011000000010\" /></NFe></nfeProc>",
       "content_hash": "synthetic"
     }
   ]

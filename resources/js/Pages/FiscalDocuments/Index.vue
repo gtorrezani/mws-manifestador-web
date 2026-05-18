@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import FormField from '@/Components/FormField.vue';
-import CompanyTabs from '@/Components/CompanyTabs.vue';
 import AppLayout from '@/Components/Layout/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import type { CompanyFiscalState, DistributionAvailability, FiscalDocument, Paginated } from '@/types/models';
+import { formatCnpj, onlyDigits } from '@/utils/documents';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, reactive, ref } from 'vue';
 
@@ -31,6 +31,8 @@ const selectedIds = ref<number[]>([]);
 const activeDocument = ref<FiscalDocument | null>(null);
 const manifestationOpen = ref(false);
 const selectedEvent = ref('');
+const bulkManifestationOpen = ref(false);
+const selectedBulkManifestationAction = ref('');
 
 const manifestationForm = useForm({
   event_type: '',
@@ -43,11 +45,25 @@ const bulkForm = useForm({
   document_ids: [] as number[],
 });
 
+const bulkManifestationForm = useForm({
+  action: '',
+  document_ids: [] as number[],
+  justification: '',
+  confirmed: false,
+});
+
 const eventLabels: Record<string, string> = {
   operation_acknowledgement: 'Ciência da Operação',
   operation_confirmation: 'Confirmação da Operação',
   operation_unknown: 'Desconhecimento da Operação',
   operation_not_performed: 'Operação Não Realizada',
+};
+
+const bulkManifestationLabels: Record<string, string> = {
+  acknowledge: 'Ciência da Operação',
+  manifest_confirmation: 'Confirmação da Operação',
+  manifest_unknown: 'Desconhecimento da Operação',
+  manifest_not_performed: 'Operação Não Realizada',
 };
 
 const selectedCount = computed(() => selectedIds.value.length);
@@ -65,10 +81,14 @@ const distributionBlockedMessage = computed(() => {
 });
 
 function applyFilters(): void {
-  router.get('/fiscal-documents', filterForm, {
-    preserveState: true,
-    replace: true,
-  });
+  router.get(
+    '/fiscal-documents',
+    { ...filterForm, issuer_cnpj: onlyDigits(filterForm.issuer_cnpj) },
+    {
+      preserveState: true,
+      replace: true,
+    },
+  );
 }
 
 function clearFilters(): void {
@@ -146,6 +166,37 @@ function runBulk(action: string): void {
   });
 }
 
+function openBulkManifestation(action: string): void {
+  if (selectedCount.value === 0) {
+    return;
+  }
+
+  selectedBulkManifestationAction.value = action;
+  bulkManifestationForm.clearErrors();
+  bulkManifestationForm.action = action;
+  bulkManifestationForm.document_ids = selectedIds.value;
+  bulkManifestationForm.justification = '';
+  bulkManifestationForm.confirmed = action === 'acknowledge';
+
+  if (action === 'acknowledge') {
+    submitBulkManifestation();
+    return;
+  }
+
+  bulkManifestationOpen.value = true;
+}
+
+function submitBulkManifestation(): void {
+  bulkManifestationForm.document_ids = selectedIds.value;
+  bulkManifestationForm.post('/fiscal-documents/bulk', {
+    preserveScroll: true,
+    onSuccess: () => {
+      selectedIds.value = [];
+      bulkManifestationOpen.value = false;
+    },
+  });
+}
+
 function formatCurrency(value: string | number | null): string {
   if (value === null) {
     return '-';
@@ -166,13 +217,15 @@ function formatDateTime(value: string | null | undefined): string {
     minute: '2-digit',
   });
 }
+
+function setIssuerCnpj(value: string): void {
+  filterForm.issuer_cnpj = formatCnpj(value);
+}
 </script>
 
 <template>
   <Head title="Documentos Fiscais" />
   <AppLayout title="Documentos Fiscais">
-    <CompanyTabs active="fiscal-documents" />
-
     <form class="toolbar" @submit.prevent="applyFilters">
       <FormField label="Período inicial">
         <input v-model="filterForm.period_from" class="input" type="date" />
@@ -184,7 +237,13 @@ function formatDateTime(value: string | null | undefined): string {
         <input v-model="filterForm.issuer_name" class="input" />
       </FormField>
       <FormField label="CNPJ emitente">
-        <input v-model="filterForm.issuer_cnpj" class="input" inputmode="numeric" />
+        <input
+          :value="formatCnpj(filterForm.issuer_cnpj)"
+          class="input"
+          inputmode="numeric"
+          maxlength="18"
+          @input="setIssuerCnpj(($event.target as HTMLInputElement).value)"
+        />
       </FormField>
       <FormField label="Chave NF-e">
         <input v-model="filterForm.access_key" class="input mono" inputmode="numeric" />
@@ -257,8 +316,37 @@ function formatDateTime(value: string | null | undefined): string {
 
     <div class="bulk-bar">
       <strong>{{ selectedCount }} selecionado(s)</strong>
-      <button class="button" type="button" :disabled="selectedCount === 0" @click="runBulk('acknowledge')">
+      <button
+        class="button"
+        type="button"
+        :disabled="selectedCount === 0"
+        @click="openBulkManifestation('acknowledge')"
+      >
         Criar ciência
+      </button>
+      <button
+        class="button"
+        type="button"
+        :disabled="selectedCount === 0"
+        @click="openBulkManifestation('manifest_confirmation')"
+      >
+        Confirmar operação
+      </button>
+      <button
+        class="button"
+        type="button"
+        :disabled="selectedCount === 0"
+        @click="openBulkManifestation('manifest_unknown')"
+      >
+        Desconhecer operação
+      </button>
+      <button
+        class="button"
+        type="button"
+        :disabled="selectedCount === 0"
+        @click="openBulkManifestation('manifest_not_performed')"
+      >
+        Operação não realizada
       </button>
       <button class="button" type="button" :disabled="selectedCount === 0" @click="runBulk('download_xml')">
         Baixar XML
@@ -300,7 +388,7 @@ function formatDateTime(value: string | null | undefined): string {
             <td>{{ document.issued_at ?? '-' }}</td>
             <td>
               <strong>{{ document.issuer_name ?? 'Emitente não informado' }}</strong>
-              <div class="muted mono">{{ document.issuer_cnpj ?? '-' }}</div>
+              <div class="muted mono">{{ document.issuer_cnpj ? formatCnpj(document.issuer_cnpj) : '-' }}</div>
             </td>
             <td>{{ formatCurrency(document.total_amount) }}</td>
             <td><StatusBadge :status="document.manifestation_status" /></td>
@@ -367,6 +455,51 @@ function formatDateTime(value: string | null | undefined): string {
         <div class="actions">
           <button class="button" type="button" @click="manifestationOpen = false">Cancelar</button>
           <button class="button primary" type="submit" :disabled="manifestationForm.processing">Criar comando</button>
+        </div>
+      </form>
+    </Modal>
+
+    <Modal
+      :open="bulkManifestationOpen"
+      :title="bulkManifestationLabels[selectedBulkManifestationAction] ?? 'Manifestação em lote'"
+      @close="bulkManifestationOpen = false"
+    >
+      <form class="grid" @submit.prevent="submitBulkManifestation">
+        <div class="manifestation-summary">
+          <strong>{{ selectedCount }} documento(s) selecionado(s)</strong>
+          <span>O evento será solicitado apenas para documentos da empresa atual.</span>
+        </div>
+
+        <FormField
+          v-if="selectedBulkManifestationAction === 'manifest_not_performed'"
+          label="Justificativa"
+          :error="bulkManifestationForm.errors.justification"
+          required
+        >
+          <textarea
+            v-model="bulkManifestationForm.justification"
+            class="textarea"
+            maxlength="255"
+            placeholder="Informe a justificativa operacional para a operação não realizada."
+          />
+        </FormField>
+
+        <label class="confirm-box">
+          <input v-model="bulkManifestationForm.confirmed" type="checkbox" />
+          Confirmo que este evento é conclusivo e deve ser enviado para a SEFAZ nos documentos selecionados.
+        </label>
+        <small v-if="bulkManifestationForm.errors.confirmed" class="error">
+          {{ bulkManifestationForm.errors.confirmed }}
+        </small>
+        <small v-if="bulkManifestationForm.errors.document_ids" class="error">
+          {{ bulkManifestationForm.errors.document_ids }}
+        </small>
+
+        <div class="actions">
+          <button class="button" type="button" @click="bulkManifestationOpen = false">Cancelar</button>
+          <button class="button primary" type="submit" :disabled="bulkManifestationForm.processing">
+            Criar comandos
+          </button>
         </div>
       </form>
     </Modal>

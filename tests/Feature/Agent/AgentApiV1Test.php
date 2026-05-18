@@ -610,7 +610,17 @@ class AgentApiV1Test extends TestCase
         ]);
         $this->assertDatabaseHas('fiscal_document_summaries', [
             'company_id' => $agent->company_id,
+            'storage_disk' => 'database',
+            'storage_path' => 'fiscal_document_summaries.summary_xml',
+            'summary_xml' => (string) $fixture['documents'][0]['summary_xml'],
             'content_hash' => hash('sha256', (string) $fixture['documents'][0]['summary_xml']),
+        ]);
+        $this->assertDatabaseHas('fiscal_document_xmls', [
+            'company_id' => $agent->company_id,
+            'storage_disk' => 'database',
+            'storage_path' => 'fiscal_document_xmls.xml_content',
+            'xml_content' => (string) $fixture['documents'][0]['full_xml'],
+            'content_hash' => hash('sha256', (string) $fixture['documents'][0]['full_xml']),
         ]);
         $this->assertDatabaseHas('sefaz_requests', [
             'company_id' => $agent->company_id,

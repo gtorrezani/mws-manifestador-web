@@ -17,6 +17,7 @@ use App\Models\AgentCommand;
 use App\Models\CompanyCertificate;
 use App\Models\SefazConnectivityTest;
 use App\Models\User;
+use App\Support\Cnpj;
 use App\Support\CompanyContext\CurrentCompanyContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -347,13 +348,13 @@ class CertificateController extends Controller
 
     private function isLinkableFiscalCandidate(AgentCertificate $certificate, ?string $companyCnpj): bool
     {
-        $normalizedCompanyCnpj = preg_replace('/\D/', '', (string) $companyCnpj);
+        $normalizedCompanyCnpj = Cnpj::normalize($companyCnpj);
 
         return $this->isUsableFiscalCandidate($certificate)
             && $certificate->document_type === 'cnpj'
             && is_string($certificate->cnpj)
             && $certificate->cnpj !== ''
-            && $normalizedCompanyCnpj === preg_replace('/\D/', '', $certificate->cnpj);
+            && $normalizedCompanyCnpj === Cnpj::normalize($certificate->cnpj);
     }
 
     private function isUsableFiscalCandidate(AgentCertificate $certificate): bool

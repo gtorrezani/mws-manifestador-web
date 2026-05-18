@@ -12,6 +12,7 @@ import type {
   Paginated,
   SefazConnectivityTest,
 } from '@/types/models';
+import { formatCpfCnpj, onlyDigits } from '@/utils/documents';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -149,7 +150,7 @@ function canLinkCandidate(certificate: AgentCertificate): boolean {
     !certificate.is_certificate_authority &&
     certificate.classification === 'fiscal_candidate' &&
     certificate.document_type === 'cnpj' &&
-    normalizeDigits(certificate.cnpj ?? certificate.document) === normalizeDigits(currentCompany.value?.cnpj ?? null),
+    onlyDigits(certificate.cnpj ?? certificate.document) === onlyDigits(currentCompany.value?.cnpj ?? null),
   );
 }
 
@@ -162,9 +163,7 @@ function blockedLinkReason(certificate: AgentCertificate): string | null {
     return 'Somente e-CNPJ pode ser vinculado à empresa nesta tela.';
   }
 
-  if (
-    normalizeDigits(certificate.cnpj ?? certificate.document) !== normalizeDigits(currentCompany.value?.cnpj ?? null)
-  ) {
+  if (onlyDigits(certificate.cnpj ?? certificate.document) !== onlyDigits(currentCompany.value?.cnpj ?? null)) {
     return 'O CNPJ do certificado não confere com a empresa selecionada.';
   }
 
@@ -266,20 +265,7 @@ function formatDocument(value: string | null, type: string | null = 'cnpj'): str
     return '-';
   }
 
-  const digits = normalizeDigits(value);
-  if (type === 'cpf' && digits.length === 11) {
-    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
-  }
-
-  if (digits.length === 14) {
-    return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-  }
-
-  return value;
-}
-
-function normalizeDigits(value: string | null | undefined): string {
-  return (value ?? '').replace(/\D/g, '');
+  return formatCpfCnpj(value, type);
 }
 
 function primaryReason(certificate: AgentCertificate): string {
@@ -318,7 +304,7 @@ function classificationLabel(classification: string): string {
 
 <template>
   <Head title="Empresa - Certificados" />
-  <AppLayout title="Certificados" subtitle="Cadastro, vínculo e validação dos certificados da empresa selecionada.">
+  <AppLayout title="Empresa" subtitle="Dados, certificados e agentes da empresa selecionada." show-subtitle>
     <CompanyTabs active="certificates" />
 
     <section class="mode-panel">

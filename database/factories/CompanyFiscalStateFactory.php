@@ -19,7 +19,7 @@ class CompanyFiscalStateFactory extends Factory
         return [
             'tenant_id' => $company->tenant_id,
             'company_id' => $company->id,
-            'environment' => FiscalEnvironment::Homologation->value,
+            'environment' => FiscalEnvironment::Production->value,
             'uf' => $company->uf,
             'service' => 'nfe_distribution',
             'last_nsu' => '000000000000000',

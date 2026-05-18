@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\FiscalEnvironment;
 use App\Models\Concerns\HasPublicUuid;
+use App\Support\Cnpj;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,11 @@ class Company extends Model
         'fiscal_environment' => FiscalEnvironment::class,
         'is_active' => 'boolean',
     ];
+
+    public function setCnpjAttribute(?string $value): void
+    {
+        $this->attributes['cnpj'] = Cnpj::normalize($value);
+    }
 
     /** @return BelongsTo<Tenant, $this> */
     public function tenant(): BelongsTo

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\FiscalEnvironment;
 use App\Models\Company;
 use App\Models\SystemSetting;
 use App\Models\Tenant;
@@ -33,7 +32,7 @@ class MwsBaselineSeeder extends Seeder
                 'trade_name' => 'Homologacao',
                 'state_registration' => null,
                 'uf' => 'SP',
-                'fiscal_environment' => FiscalEnvironment::Homologation,
+                'fiscal_environment' => 'production',
                 'is_active' => true,
             ],
         );

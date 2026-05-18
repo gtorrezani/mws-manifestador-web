@@ -20,7 +20,7 @@ class DistributionStateService
             [
                 'tenant_id' => $command->tenant_id,
                 'company_id' => $command->company_id,
-                'environment' => $this->string($payload, 'environment') ?? ($command->payload['environment'] ?? 'homologation'),
+                'environment' => $this->string($payload, 'environment') ?? ($command->payload['environment'] ?? 'production'),
                 'uf' => $this->string($payload, 'uf') ?? ($command->payload['uf'] ?? 'SP'),
                 'service' => $this->string($payload, 'service') ?? self::SERVICE,
             ],

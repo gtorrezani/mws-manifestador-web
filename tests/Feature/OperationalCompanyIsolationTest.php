@@ -455,13 +455,13 @@ class OperationalCompanyIsolationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('settings.sync_frequency_minutes.company_id', $current->id)
-                ->where('settings.sync_frequency_minutes.value.value', 15));
+                ->where('settings.sync_frequency_minutes.value.value', 15)
+                ->where('fiscalState.company_id', $current->id));
 
         $this
             ->withCurrentCompany($current)
             ->put('/settings', [
-                'default_fiscal_environment' => 'homologation',
-                'xml_storage_disk' => 'local',
+                'last_nsu' => '000000000000123',
                 'retention_days' => 365,
                 'sync_frequency_minutes' => 30,
                 'automation_rules' => [],
@@ -471,6 +471,10 @@ class OperationalCompanyIsolationTest extends TestCase
         $this->assertDatabaseHas('system_settings', [
             'company_id' => $current->id,
             'key' => 'retention_days',
+        ]);
+        $this->assertDatabaseHas('company_fiscal_states', [
+            'company_id' => $current->id,
+            'last_nsu' => '000000000000123',
         ]);
         $this->assertDatabaseMissing('system_settings', [
             'company_id' => $other->id,

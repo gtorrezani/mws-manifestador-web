@@ -7,6 +7,7 @@ use App\Enums\CertificateType;
 use App\Models\Company;
 use App\Models\CompanyCertificate;
 use App\Services\Certificates\A1CertificateInspector;
+use App\Support\Cnpj;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
@@ -23,9 +24,16 @@ class StoreA1CertificateAction
     public function execute(Company $company, UploadedFile $file, string $password, ?string $name): CompanyCertificate
     {
         $inspected = $this->inspector->inspect($file, $password);
-        if ($inspected['cnpj'] !== $company->cnpj) {
+        $certificateCnpj = Cnpj::normalize($inspected['cnpj']);
+        $companyCnpj = Cnpj::normalize($company->cnpj);
+
+        if ($certificateCnpj === '' || $certificateCnpj !== $companyCnpj) {
             throw ValidationException::withMessages([
-                'certificate_file' => 'CNPJ do certificado não corresponde à empresa selecionada.',
+                'certificate_file' => sprintf(
+                    'CNPJ do certificado (%s) não corresponde à empresa selecionada (%s).',
+                    Cnpj::format($certificateCnpj),
+                    Cnpj::format($companyCnpj),
+                ),
             ]);
         }
 
@@ -52,7 +60,7 @@ class StoreA1CertificateAction
             'storage_path' => $path,
             'encrypted_password_payload' => Crypt::encryptString($password),
             'metadata' => [
-                'cnpj' => $inspected['cnpj'],
+                'cnpj' => $certificateCnpj,
                 'source' => 'web_upload',
             ],
             'last_validated_at' => now(),

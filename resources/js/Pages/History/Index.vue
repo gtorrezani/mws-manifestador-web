@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppLayout from '@/Components/Layout/AppLayout.vue';
-import CompanyTabs from '@/Components/CompanyTabs.vue';
 import Pagination from '@/Components/Pagination.vue';
 import StatusBadge from '@/Components/StatusBadge.vue';
 import type { AgentCommand, Paginated } from '@/types/models';
@@ -35,8 +34,6 @@ const technicalMessage = (code: string | null, message: string | null): string =
 <template>
   <Head title="Histórico" />
   <AppLayout title="Histórico">
-    <CompanyTabs active="history" />
-
     <section class="panel">
       <div class="section-title">
         <h2>Comandos</h2>

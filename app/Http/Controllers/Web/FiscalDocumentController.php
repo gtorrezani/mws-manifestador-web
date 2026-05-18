@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Actions\FiscalDocument\CreateFiscalCommandAction;
 use App\Actions\FiscalDocument\RequestManifestationAction;
 use App\Enums\CommandType;
+use App\Enums\FiscalDocumentBulkAction;
 use App\Enums\ManifestationEventType;
 use App\Http\Controllers\Concerns\AuthorizesCurrentCompany;
 use App\Http\Controllers\Controller;
@@ -168,6 +169,7 @@ class FiscalDocumentController extends Controller
     ): RedirectResponse {
         /** @var list<int> $documentIds */
         $documentIds = array_map('intval', (array) $request->validated('document_ids'));
+        $bulkAction = FiscalDocumentBulkAction::from((string) $request->validated('action'));
 
         $documents = FiscalDocument::query()
             ->forCompany($context->company())
@@ -176,21 +178,25 @@ class FiscalDocumentController extends Controller
             ->get();
 
         foreach ($documents as $document) {
-            if ($request->validated('action') === 'acknowledge') {
+            $eventType = $bulkAction->manifestationEventType();
+            if ($eventType instanceof ManifestationEventType) {
                 $requestManifestationAction->execute(
                     document: $document,
-                    eventType: ManifestationEventType::OperationAcknowledgement,
-                    justification: null,
-                    context: new ManifestationRequestContext,
+                    eventType: $eventType,
+                    justification: is_string($request->validated('justification')) ? $request->validated('justification') : null,
+                    context: new ManifestationRequestContext(
+                        explicitUserConfirmation: ! $bulkAction->requiresExplicitConfirmation() || $request->boolean('confirmed'),
+                    ),
                     createdBy: $this->authenticatedUserId($request),
                 );
 
                 continue;
             }
 
-            $type = $request->validated('action') === 'export_zip'
-                ? CommandType::ExportXmlZip
-                : CommandType::DownloadXmlByAccessKey;
+            $type = $bulkAction->commandType();
+            if (! $type instanceof CommandType) {
+                continue;
+            }
 
             $company = $this->requireCompany($document);
 

@@ -7,4 +7,6 @@ return [
         'technical_error_backoff_minutes' => env('SEFAZ_DISTRIBUTION_TECHNICAL_ERROR_BACKOFF_MINUTES', 5),
         'allow_immediate_continue_when_nsu_pending' => env('SEFAZ_DISTRIBUTION_ALLOW_IMMEDIATE_CONTINUE_WHEN_NSU_PENDING', true),
     ],
+    'nfe_schema_path' => env('SEFAZ_NFE_SCHEMA_PATH', resource_path('schemas/nfe')),
+    'timeout_seconds' => (int) env('SEFAZ_TIMEOUT_SECONDS', 30),
 ];

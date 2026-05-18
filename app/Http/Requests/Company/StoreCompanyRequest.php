@@ -2,15 +2,21 @@
 
 namespace App\Http\Requests\Company;
 
-use App\Enums\FiscalEnvironment;
+use App\Support\Cnpj;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCompanyRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'cnpj' => Cnpj::normalize(is_scalar($this->input('cnpj')) ? (string) $this->input('cnpj') : null),
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -23,7 +29,6 @@ class StoreCompanyRequest extends FormRequest
             'cnpj' => ['required', 'digits:14'],
             'state_registration' => ['nullable', 'string', 'max:32'],
             'uf' => ['required', 'string', 'size:2'],
-            'fiscal_environment' => ['required', Rule::enum(FiscalEnvironment::class)],
             'is_active' => ['boolean'],
         ];
     }

@@ -6,6 +6,7 @@ use App\Enums\CertificateType;
 use App\Models\AgentCertificate;
 use App\Models\Company;
 use App\Models\CompanyCertificate;
+use App\Support\Cnpj;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -62,8 +63,8 @@ class LinkA3CertificateAction
 
     private function canLink(Company $company, AgentCertificate $agentCertificate): bool
     {
-        $companyCnpj = preg_replace('/\D/', '', (string) $company->cnpj);
-        $certificateCnpj = preg_replace('/\D/', '', (string) $agentCertificate->cnpj);
+        $companyCnpj = Cnpj::normalize($company->cnpj);
+        $certificateCnpj = Cnpj::normalize($agentCertificate->cnpj);
 
         return $agentCertificate->tenant_id === $company->tenant_id
             && $agentCertificate->company_id === $company->id
